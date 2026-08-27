@@ -8,7 +8,7 @@
   - Output JSON structured claims list with strict schema validation
   - Module: `modules/call1_decomposition.py` — LLM call isolated in `call1_run()`, falls back to rule-based heuristic if no API key
   - Test: `test_p11.py`
-  - LLM provider: OpenAI (gpt-4o-mini), key read from `OPENAI_API_KEY` environment variable
+  - LLM provider: Gemini 3.1 Pro, key read from `GOOGLE_API_KEY` environment variable
 - **P1.2**: Implement free signal — token logprob entropy computation
   - Align claim text to token offsets
   - Compute average log-probability per claim

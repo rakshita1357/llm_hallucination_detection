@@ -1,2 +1,7 @@
 nltk
-openai
+google-generativeai
+python-dotenv
+sentence-transformers
+requests
+dotenv
+spacy

@@ -1,6 +1,6 @@
 """Unit tests for modules.answer_generator — interface only.
 
-These tests DO NOT require a real OpenAI API key.  They verify the function
+These tests DO NOT require a real Google API key.  They verify the function
 returns a dict with the expected keys and that the no-key path is handled
 correctly without making any API calls.
 """
@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, ".")
 
 # IMPORTANT: This test must not make real API calls.  Unset the key before importing.
-os.environ.pop("OPENAI_API_KEY", None)
+os.environ.pop("GOOGLE_API_KEY", None)
 
 from modules.answer_generator import generate_answer
 
@@ -21,7 +21,7 @@ def test_interface_returns_correct_keys():
     """Verify generate_answer always returns a dict with the same keys."""
     # No API key should be configured; the function must not crash.
     # Explicitly ensure no key is present so we test the no-key path.
-    os.environ.pop("OPENAI_API_KEY", None)
+    os.environ.pop("GOOGLE_API_KEY", None)
     result = generate_answer("What is the capital of France?")
 
     # Type check
@@ -66,8 +66,8 @@ def test_interface_returns_correct_keys():
     assert "reason" in result["metadata"], (
         "metadata must contain 'reason' key when API key is missing"
     )
-    assert result["metadata"]["reason"] == "OPENAI_API_KEY_not_configured", (
-        f"Expected reason='OPENAI_API_KEY_not_configured', "
+    assert result["metadata"]["reason"] == "GOOGLE_API_KEY_not_configured", (
+        f"Expected reason='GOOGLE_API_KEY_not_configured', "
         f"got '{result['metadata']['reason']}'"
     )
 
@@ -75,13 +75,13 @@ def test_interface_returns_correct_keys():
 
 
 def test_no_api_key_no_real_call():
-    """Verify that without OPENAI_API_KEY, no real API call is made.
+    """Verify that without GOOGLE_API_KEY, no real API call is made.
 
     This is a best-effort check: we clear the env var, call the function,
     and assert the result has the expected placeholder structure.
     """
     # Ensure the key is definitely not set
-    os.environ.pop("OPENAI_API_KEY", None)
+    os.environ.pop("GOOGLE_API_KEY", None)
 
     result = generate_answer("Test question for no-key path")
 
@@ -90,7 +90,7 @@ def test_no_api_key_no_real_call():
     assert result["token_ids"] is None
     assert result["logprobs"] is None
     assert result["offsets"] is None
-    assert result["metadata"]["reason"] == "OPENAI_API_KEY_not_configured"
+    assert result["metadata"]["reason"] == "GOOGLE_API_KEY_not_configured"
 
     print("test_no_api_key_no_real_call: PASSED")
 
