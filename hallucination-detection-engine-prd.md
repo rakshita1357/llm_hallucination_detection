@@ -198,9 +198,9 @@ Aggregate answer-level score = salience-weighted average of per-claim confidence
 
 | Component | Suggestion |
 |---|---|
-| Decomposition + triage model (Call 1) | Smaller/cheaper instruction-tuned LLM — evaluate cost/accuracy tradeoff before locking in |
-| Verification model (Call 2) | Stronger reasoning model, since this is the accuracy-critical step |
-| Escalation model (7.7) | A different model family/provider than Call 2, to avoid correlated blind spots |
+| Decomposition + triage model (Call 1) | Gemini 3.1 Pro — use for decomposition and self-rated confidence |
+| Verification model (Call 2) | Gemini 3.1 Pro — use for batched verification with evidence |
+| Escalation model (7.7) | A different model family/provider than Call 2 (e.g., if Call 2 uses Gemini, use a different provider) to avoid correlated blind spots |
 | Embedding model (graph filtering, clustering) | Local sentence-embedding model (e.g., an MPNet or BGE-class model) |
 | NLI cross-encoder (entailment scoring) | Local DeBERTa-class model fine-tuned on MNLI/FEVER-style data |
 | Retrieval | Web search API + optional domain-specific corpus/vector DB |

@@ -6,41 +6,54 @@ confidence and retrieval flags.
 
 This module is deliberately modular and beginner-friendly. The LLM call is
 isolated in `call1_run()` so it can be replaced with a real LLM invocation
-without touching the rest of the pipeline.
+without touching the rest of the pipeline. Uses Gemini 3.1 Pro.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import spacy
 
 # --- Load spaCy model (same as existing project) ---
-_nlp = spacy.load("en_core_web_sm")
+try:
+    _nlp = spacy.load("en_core_web_sm")
+except OSError:
+    # Fallback to a blank English model if the full model is not installed
+    _nlp = spacy.blank("en")
+    # Add a simple sentencizer to enable sentence segmentation
+    if not _nlp.has_pipe("sentencizer"):
+        _nlp.add_pipe("sentencizer")
 
-# --- OpenAI client (lazy-initialised so the module can import without an API key) ---
-_openai_client = None
-_OPENAI_API_KEY = None
+# --- Gemini client (lazy-initialised so the module can import without an API key) ---
+_gemini_model = None
+_GOOGLE_API_KEY = None
 
 
-def _get_openai_client():
-    """Get or initialise the OpenAI client, reading the API key from the environment."""
-    global _openai_client, _OPENAI_API_KEY
-    if _openai_client is not None:
-        return _openai_client
+def _get_gemini_model():
+    """Get or initialise the Gemini model, reading the API key from the environment."""
+    global _gemini_model, _GOOGLE_API_KEY
+    if _gemini_model is not None:
+        return _gemini_model
     try:
-        from openai import OpenAI
-        _OPENAI_API_KEY = _OPENAI_API_KEY or __import__("os").getenv("OPENAI_API_KEY")
-        if _OPENAI_API_KEY:
-            _openai_client = OpenAI(api_key=_OPENAI_API_KEY)
+        import google.generativeai as genai
+        _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
+        if _GOOGLE_API_KEY:
+            genai.configure(api_key=_GOOGLE_API_KEY)
+            _gemini_model = genai.GenerativeModel('gemini-2.5-pro')
         else:
-            _openai_client = None
+            _gemini_model = None
     except ImportError:
-        _openai_client = None
-    return _openai_client
+        _gemini_model = None
+    return _gemini_model
 
 
 # --- Uncertainty keywords that lower self-confidence ---
@@ -145,15 +158,15 @@ def _extract_atomic_claims_spacy(text: str) -> List[str]:
 def _call_llm_decompose(question: str, answer_text: str) -> Optional[Dict[str, Any]]:
     """Call the LLM to decompose the answer into atomic claims.
 
-    Sends the question and answer to OpenAI's chat completion endpoint with a
+    Sends the question and answer to Gemini's chat completion endpoint with a
     structured prompt requesting atomic claims in JSON format. Returns the
     parsed result, or None if the call fails or the API key is not available.
     """
-    client = _get_openai_client()
-    if client is None:
+    model = _get_gemini_model()
+    if model is None:
         return None
 
-    system_prompt = """You are an AI assistant tasked with decomposing an LLM-generated answer into atomic, independently verifiable claims. 
+    system_prompt = """You are an AI assistant tasked with decomposing an LLM-generated answer into atomic, independently verifiable claims.
 
 For each claim, provide:
 - id: a unique identifier (e.g., "c1", "c2", ...)
@@ -182,17 +195,15 @@ Decompose this answer into atomic claims following the format above.
 """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.0,
-            max_tokens=1000,
+        response = model.generate_content(
+            system_prompt + "\n\n" + user_prompt,
+            generation_config={
+                "temperature": 0.0,
+                "max_output_tokens": 1000,
+            }
         )
 
-        content = response.choices[0].message.content
+        content = response.text
 
         # Find the JSON block in the response
         json_match = re.search(r"\{.*\}", content, re.DOTALL)

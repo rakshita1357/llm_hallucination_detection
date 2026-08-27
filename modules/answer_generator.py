@@ -10,13 +10,12 @@ and other consumers to always rely on a consistent interface without None-
 checking for every field.
 
 Typical call sequence (outside this project):
-    1. Original LLM call (e.g., gpt-4o-mini chat completion) with
-       `logprobs=1` and `top_logprobs=0` to capture token-level data.
+    1. Original LLM call (e.g., Gemini 3.1 Pro) with logprobs if available.
     2. Result stored alongside the answer text as token_ids, logprobs, offsets.
     3. `generate_answer()` is called with the question; the stored metadata
        is returned so Call 1 can compute avg logprob per claim.
 
-Note: The current project has no OpenAI API key configured and the
+Note: The current project has no Google API key configured and the
 pre-generated answers in data/raw/sample_dataset.json are plain strings
 without token metadata.  Running `generate_answer()` without an API key
 will return a structured placeholder indicating the limitation.
@@ -27,62 +26,46 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
+from dotenv import load_dotenv
 
-def _get_openai_api_key() -> Optional[str]:
-    """Read the OpenAI API key from the environment; never hard-code it."""
-    return os.getenv("OPENAI_API_KEY")
+load_dotenv()
 
 
-def _call_openai_generate(question: str) -> Dict[str, Any]:
-    """Call OpenAI to generate an answer with token logprob metadata.
+def _get_google_api_key() -> Optional[str]:
+    """Read the Google API key from the environment; never hard-code it."""
+    return os.getenv("GOOGLE_API_KEY")
+
+
+def _call_gemini_generate(question: str) -> Dict[str, Any]:
+    """Call Gemini to generate an answer.
 
     Returns a dict with answer_text, token_ids, logprobs, offsets, and metadata.
+    Note: Gemini does not provide token-level logprobs in the same way as OpenAI.
     Raises if the API key is missing or the call fails.
     """
-    from openai import OpenAI
+    import google.generativeai as genai
 
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    api_key = os.getenv("GOOGLE_API_KEY")
+    genai.configure(api_key=api_key)
 
-    # The chat completion endpoint with logprobs.
-    # logprobs=1 requests token-level logprob data.
-    # We also request top_logprobs=0 (only the chosen token's logprob).
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": question}],
-        temperature=0.7,
-        max_tokens=500,
-        logprobs=True,
-        top_logprobs=0,
+    model = genai.GenerativeModel('gemini-2.5-pro')
+
+    response = model.generate_content(
+        question,
+        generation_config={
+            "temperature": 0.7,
+            "max_output_tokens": 500,
+        }
     )
 
-    # Extract the assistant message content (the answer text)
-    choice = response.choices[0]
-    answer_text = choice.message.content or ""
+    # Extract the answer text
+    answer_text = response.text or ""
 
-    # Extract token-level metadata.
-    # response.logprobs is available on the choice if logprobs=True was requested.
-    # It is a Logprobs object with token_logprobs and text_offset etc.
-    # The exact attribute names depend on the openai SDK version.
-    logprobs_obj = getattr(response.choices[0], "logprobs", None)
-
+    # Note: Gemini does not provide token-level logprobs in the same format as OpenAI
+    # Return placeholder values for token metadata
     token_ids: List[int] = []
     token_logprobs: List[float] = []
     offsets: List[Tuple[int, int]] = []
-
-    if logprobs_obj is not None:
-        # SDK v1.x: logprobs.token_logprobs is List[float]
-        # SDK v1.x: logprobs.tokens is List[str]
-        # SDK v1.x: logprobs.text_offset is List[Tuple[int,int]] or similar
-        tokens = getattr(logprobs_obj, "tokens", None) or []
-        lp = getattr(logprobs_obj, "token_logprobs", None) or []
-
-        for i, token in enumerate(tokens):
-            # Guard against mismatched lengths
-            if i < len(lp):
-                token_ids.append(i)  # placeholder index; real use would map token->id
-                token_logprobs.append(lp[i])
-                # Use character offset from the SDK if available; otherwise None
-                offsets.append((0, 0))  # will be filled by alignment layer
 
     return {
         "answer_text": answer_text,
@@ -91,9 +74,10 @@ def _call_openai_generate(question: str) -> Dict[str, Any]:
         "offsets": offsets,
         "generation_successful": True,
         "metadata": {
-            "model": "gpt-4o-mini",
+            "model": "gemini-3.1-pro",
             "question": question,
             "api_key_present": True,
+            "note": "Token logprobs not available from Gemini API",
         },
     }
 
@@ -106,7 +90,7 @@ def generate_answer(question: str) -> Dict[str, Any]:
     always access the same fields without None‑checking every key.
 
     The returned metadata indicates whether token-level logprob information
-    is available.  If the OpenAI API key is not configured, the function
+    is available.  If the Google API key is not configured, the function
     returns a placeholder dict with ``generation_successful=False`` and
     ``metadata`` explaining the limitation.
 
@@ -141,7 +125,7 @@ def generate_answer(question: str) -> Dict[str, Any]:
           Call 1 can compute ``avg_logprob`` per claim and flag low‑probability
           claims for retrieval override (P1.2).
     """
-    api_key = _get_openai_api_key()
+    api_key = _get_google_api_key()
 
     if not api_key:
         return {
@@ -151,14 +135,14 @@ def generate_answer(question: str) -> Dict[str, Any]:
             "offsets": None,
             "generation_successful": False,
             "metadata": {
-                "reason": "OPENAI_API_KEY_not_configured",
-                "model": "gpt-4o-mini",
+                "reason": "GOOGLE_API_KEY_not_configured",
+                "model": "gemini-3.1-pro",
                 "question": question,
             },
         }
 
     try:
-        return _call_openai_generate(question)
+        return _call_gemini_generate(question)
     except Exception as e:
         # API call failed — return a structured placeholder rather than
         # propagating an exception upwards.  This keeps the Call 1 pipeline
@@ -170,8 +154,8 @@ def generate_answer(question: str) -> Dict[str, Any]:
             "offsets": None,
             "generation_successful": False,
             "metadata": {
-                "reason": f"openai_call_failed: {e}",
-                "model": "gpt-4o-mini",
+                "reason": f"gemini_call_failed: {e}",
+                "model": "gemini-3.1-pro",
                 "question": question,
             },
         }
