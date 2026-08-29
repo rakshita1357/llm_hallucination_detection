@@ -1,8 +1,14 @@
 import spacy
 import re
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
+# Load spaCy model – fallback to a blank English model if the full model is missing.
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    nlp = spacy.blank("en")
+    # Ensure a sentencizer is available for sentence segmentation.
+    if not nlp.has_pipe("sentencizer"):
+        nlp.add_pipe("sentencizer")
 
 # Common clause separators
 CLAUSE_SPLITTERS = [

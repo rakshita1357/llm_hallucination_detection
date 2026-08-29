@@ -14,8 +14,14 @@ from __future__ import annotations
 import json
 import os
 import re
+from modules.free_signal import compute_claim_logprob_entropy
 from dataclasses import dataclass, asdict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
+
+# Threshold for flagging low-probability claims based on token logprob entropy (higher is worse).
+# Can be tuned based on validation data.
+LOGPROB_ENTROPY_THRESHOLD = 2.0  # Example threshold (average negative log‑probability)
+
 
 from dotenv import load_dotenv
 
@@ -48,7 +54,7 @@ def _get_gemini_model():
         _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
         if _GOOGLE_API_KEY:
             genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel('gemini-2.5-pro')
+            _gemini_model = genai.GenerativeModel('gemini-3.1-pro')
         else:
             _gemini_model = None
     except ImportError:
@@ -78,6 +84,8 @@ class Claim:
     self_confidence: float  # in [0, 1]
     needs_retrieval: bool
     search_query: Optional[str] = None
+    # Token-level free signal: average negative log‑probability (entropy) for the claim
+    logprob_entropy: float = 0.0
 
 
 def _compute_self_confidence(text: str) -> float:
@@ -226,7 +234,7 @@ Decompose this answer into atomic claims following the format above.
         return None
 
 
-def _fallback_rule_based(question: str, answer_text: str) -> Dict[str, Any]:
+def _fallback_rule_based(question: str, answer_text: str, token_logprobs: Optional[List[float]] = None, offsets: Optional[List[Tuple[int, int]]] = None) -> Dict[str, Any]:
     """Fallback rule-based decomposition using spaCy + heuristic confidence.
 
     Used when the LLM call fails or is not available.
@@ -250,6 +258,19 @@ def _fallback_rule_based(question: str, answer_text: str) -> Dict[str, Any]:
             needs_retrieval=needs_retrieval,
             search_query=search_query,
         )
+        # Compute token logprob entropy for the claim (if token data available)
+        entropy = compute_claim_logprob_entropy(
+            claim_text=claim_text,
+            answer_text=answer_text,
+            token_logprobs=token_logprobs or [],
+            offsets=offsets or [],
+        )
+        # Set the computed entropy (rounded to two decimals)
+        claim.logprob_entropy = round(entropy, 2)
+        # Override retrieval flag if entropy exceeds threshold (high uncertainty)
+        if entropy > LOGPROB_ENTROPY_THRESHOLD:
+            claim.needs_retrieval = True
+
         claims.append(claim)
 
     # 3. Validate and serialize to dict
@@ -268,7 +289,7 @@ def _fallback_rule_based(question: str, answer_text: str) -> Dict[str, Any]:
     return result
 
 
-def call1_run(question: str, answer_text: str) -> Dict[str, Any]:
+def call1_run(question: str, answer_text: str, token_logprobs: Optional[List[float]] = None, offsets: Optional[List[Tuple[int, int]]] = None) -> Dict[str, Any]:
     """Run Call 1: decomposition + triage.
 
     Attempts to use an LLM to decompose the answer into atomic claims with
@@ -281,7 +302,7 @@ def call1_run(question: str, answer_text: str) -> Dict[str, Any]:
         answer_text: The LLM-generated answer to decompose.
 
     Returns:
-        A dict matching the expected Call 1 JSON schema:
+        A dict matching the expected Call 1 JSON schema (additional fields may be present):
         {
             "claims": [
                 {
@@ -289,7 +310,8 @@ def call1_run(question: str, answer_text: str) -> Dict[str, Any]:
                     "text": "...",
                     "self_confidence": 0.8,
                     "needs_retrieval": true,
-                    "search_query": "..."
+                    "search_query": "...",
+                    "logprob_entropy": 1.23  # average negative log‑probability (optional)
                 },
                 ...
             ]
@@ -334,12 +356,24 @@ def call1_run(question: str, answer_text: str) -> Dict[str, Any]:
             except (ValueError, TypeError, KeyError):
                 # Skip malformed claim entries
                 continue
+        # Compute logprob entropy for each claim (if token logprobs are provided)
+        # token_logprobs and offsets may be None; compute_claim_logprob_entropy handles empty inputs.
+        for vc in valid_claims:
+            entropy = compute_claim_logprob_entropy(
+                claim_text=vc["text"],
+                answer_text=answer_text,
+                token_logprobs=token_logprobs or [],
+                offsets=offsets or [],
+            )
+            vc["logprob_entropy"] = round(entropy, 2)
+            if entropy > LOGPROB_ENTROPY_THRESHOLD:
+                vc["needs_retrieval"] = True
 
         if valid_claims:
             return {"claims": valid_claims}
 
     # 2. Fall back to rule-based heuristic
-    return _fallback_rule_based(question, answer_text)
+    return _fallback_rule_based(question, answer_text, token_logprobs, offsets)
 
 
 # --- Simple CLI for manual testing ---

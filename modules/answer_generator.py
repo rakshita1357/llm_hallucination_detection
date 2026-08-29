@@ -48,7 +48,7 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
     api_key = os.getenv("GOOGLE_API_KEY")
     genai.configure(api_key=api_key)
 
-    model = genai.GenerativeModel('gemini-2.5-pro')
+    model = genai.GenerativeModel('gemini-3.1-pro')
 
     response = model.generate_content(
         question,
