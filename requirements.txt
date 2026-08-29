@@ -6,4 +6,5 @@ requests
 dotenv
 spacy
 uvicorn
+fastapi
 pandas

@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Dict, List
+from modules import metrics
 
 # ---------------------------------------------------------------------------
 # Lazy optional imports – we fall back to a bag‑of‑words approach if the heavy
@@ -170,6 +171,7 @@ def retrieve_for_claims(claims: List[Dict]) -> List[Dict]:
     # Populate cache for all unique queries.
     for q in unique_queries:
         _get_evidence(q)
+        metrics.increment_retrieval_calls()
 
     # Attach evidence to each claim.
     enriched_claims: List[Dict] = []

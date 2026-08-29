@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from modules import metrics
 from typing import List, Dict, Optional
 
 # ---------------------------------------------------------------------------
@@ -121,20 +122,24 @@ def _verify_batch(claims_batch: List[Dict]) -> List[Dict]:
         return [{"id": c.get("id", ""), "verdict": "insufficient_evidence"} for c in claims_batch]
 
     user_prompt = _format_claim_batch(claims_batch)
-    try:
-        response = model.generate_content(
-            _SYSTEM_PROMPT + "\n\n" + user_prompt,
-            generation_config={"temperature": 0.0, "max_output_tokens": 2000},
-        )
-        content = response.text or ""
-        # Extract the JSON block.
-        json_match = re.search(r"\{.*\}", content, re.DOTALL)
-        json_str = json_match.group(0) if json_match else content
-        data = json.loads(json_str)
-        if isinstance(data, dict) and "verdicts" in data and isinstance(data["verdicts"], list):
-            return data["verdicts"]
-    except Exception as e:
-        print(f"Call2 verification failed: {e}")
+    attempt = 0
+    while attempt < 2:
+        metrics.increment_llm_calls()
+        try:
+            response = model.generate_content(
+                _SYSTEM_PROMPT + "\n\n" + user_prompt,
+                generation_config={"temperature": 0.0, "max_output_tokens": 2000},
+            )
+            content = response.text or ""
+            json_match = re.search(r"\{.*\}", content, re.DOTALL)
+            json_str = json_match.group(0) if json_match else content
+            data = json.loads(json_str)
+            if isinstance(data, dict) and "verdicts" in data and isinstance(data["verdicts"], list):
+                return data["verdicts"]
+            print(f"Call2: malformed output on attempt {attempt + 1}, retrying...")
+        except Exception as e:
+            print(f"Call2 verification failed (attempt {attempt + 1}): {e}")
+        attempt += 1
 
     # Fallback heuristic – rely on self_confidence if present.
     fallback = []

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from modules.free_signal import compute_claim_logprob_entropy
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Any, Tuple
@@ -28,6 +29,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import spacy
+from modules import metrics
 
 # --- Load spaCy model (same as existing project) ---
 try:
@@ -203,6 +205,8 @@ Decompose this answer into atomic claims following the format above.
 """
 
     try:
+        metrics.increment_llm_calls()
+        start = time.perf_counter()
         response = model.generate_content(
             system_prompt + "\n\n" + user_prompt,
             generation_config={
@@ -210,7 +214,8 @@ Decompose this answer into atomic claims following the format above.
                 "max_output_tokens": 1000,
             }
         )
-
+        elapsed = time.perf_counter() - start
+        metrics.add_latency(elapsed)
         content = response.text
 
         # Find the JSON block in the response
@@ -320,8 +325,13 @@ def call1_run(question: str, answer_text: str, token_logprobs: Optional[List[flo
     if not answer_text or not answer_text.strip():
         return {"claims": []}
 
-    # 1. Try LLM-based decomposition first
-    llm_result = _call_llm_decompose(question, answer_text)
+    # 1. Try LLM-based decomposition with a single retry on failure/malformed output
+    llm_result = None
+    for _attempt in range(2):
+        llm_result = _call_llm_decompose(question, answer_text)
+        if llm_result is not None:
+            break
+        # retry on None result
     if llm_result is not None:
         # LLM call succeeded - validate and return
         # Ensure the result has the expected schema
