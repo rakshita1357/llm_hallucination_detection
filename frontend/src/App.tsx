@@ -153,7 +153,7 @@ const App: React.FC = () => {
 
   return (
     <ToastProvider>
-      <div className={`flex h-screen overflow-hidden \${isDark ? 'bg-primary text-white' : 'bg-white text-gray-900'}`}>
+      <div className={`flex h-screen overflow-hidden ${isDark ? 'bg-primary text-white' : 'bg-white text-gray-900'}`}>
         <Sidebar
           chats={chats.map((c) => ({ id: c.id, title: c.title }))}
           selectedChatId={selectedChatId}

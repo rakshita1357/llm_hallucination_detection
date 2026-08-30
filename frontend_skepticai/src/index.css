@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+  }
+
+  code, pre, kbd {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* Markdown styling inside AI response */
+.prose-skeptic {
+  line-height: 1.65;
+}
+
+.prose-skeptic p {
+  margin-bottom: 0.85rem;
+}
+
+.prose-skeptic p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-skeptic h1, .prose-skeptic h2, .prose-skeptic h3, .prose-skeptic h4 {
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.015em;
+}
+
+.prose-skeptic h1 { font-size: 1.4rem; }
+.prose-skeptic h2 { font-size: 1.2rem; }
+.prose-skeptic h3 { font-size: 1.05rem; }
+
+.prose-skeptic ul, .prose-skeptic ol {
+  margin-bottom: 0.85rem;
+  padding-left: 1.35rem;
+}
+
+.prose-skeptic ul { list-style-type: disc; }
+.prose-skeptic ol { list-style-type: decimal; }
+
+.prose-skeptic li {
+  margin-bottom: 0.35rem;
+}
+
+.prose-skeptic a {
+  color: #3b82f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose-skeptic a:hover {
+  color: #60a5fa;
+}
+
+.prose-skeptic blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 0.85rem;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0.85rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.prose-skeptic strong {
+  font-weight: 600;
+}
+
+.prose-skeptic hr {
+  margin: 1.25rem 0;
+  border-color: rgba(148, 163, 184, 0.2);
+}
