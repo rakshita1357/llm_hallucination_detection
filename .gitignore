@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .venv/
 .env
+.env.example
+
 .ipynb_checkpoints/
 .idea/
 node_modules/
+.neon

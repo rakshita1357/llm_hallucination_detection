@@ -21,16 +21,8 @@ export const AVAILABLE_MODELS: AIModel[] = [
     badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
     iconName: 'gemini'
   },
-  {
-    id: 'claude-3-5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    provider: 'Anthropic',
-    description: 'Industry-leading nuanced synthesis, precision writing, and logical comprehension.',
-    contextWindow: '200k tokens',
-    tag: 'Anthropic Claude',
-    badgeColor: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    iconName: 'claude'
-  }
+
+
 ];
 
 export const DEFAULT_MODEL_ID = 'gemini-2-5-pro';

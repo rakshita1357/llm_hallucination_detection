@@ -1,4 +1,4 @@
-export type ModelId = 'chatgpt-4o' | 'gemini-2-5-pro' | 'claude-3-5-sonnet' | 'gemini-2-5-flash';
+export type ModelId = 'chatgpt-4o' | 'gemini-2-5-pro' | 'gemini-2-5-flash';
 
 export interface AIModel {
   id: ModelId;
@@ -99,8 +99,6 @@ export interface UserSettings {
   showEvidenceSources: boolean;
   autoOpenFindings: boolean;
   highlightFlaggedText: boolean;
-  customBackendUrl: string;
-  useLiveBackend: boolean;
 }
 
 export interface UserProfile {

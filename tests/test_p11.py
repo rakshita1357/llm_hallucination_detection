@@ -4,7 +4,7 @@ import json
 import sys
 sys.path.insert(0, "..")
 
-from modules.call1_decomposition import call1_run, Claim, _compute_self_confidence
+from Backend.modules import call1_run, Claim, _compute_self_confidence
 
 
 def test_schema_validation():

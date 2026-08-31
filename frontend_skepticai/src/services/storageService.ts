@@ -15,9 +15,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   showConfidenceScores: true,
   showEvidenceSources: true,
   autoOpenFindings: true,
-  highlightFlaggedText: true,
-  customBackendUrl: 'http://localhost:8000/api/chat',
-  useLiveBackend: false
+  highlightFlaggedText: true
 };
 
 export const DEFAULT_USER: UserProfile = {
@@ -26,7 +24,7 @@ export const DEFAULT_USER: UserProfile = {
   email: 'alex.rivera@research.org',
   avatarUrl: '',
   role: 'AI Safety Researcher',
-  isLoggedIn: true
+  isLoggedIn: false
 };
 
 const SEED_CONVERSATIONS: ChatConversation[] = [

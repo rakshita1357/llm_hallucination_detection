@@ -10,13 +10,13 @@ import {
   Trash2, 
   Check, 
   Download,
-  Server,
   User,
   LogOut,
   Sparkles
 } from 'lucide-react';
 import { UserProfile, UserSettings, ModelId } from '../../types.ts';
 import { AVAILABLE_MODELS } from '../../constants/models.ts';
+import { logout } from '../../services/apiService.ts';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -39,7 +39,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClearHistory,
   conversationsJsonString
 }) => {
-  const [activeTab, setActiveTab] = useState<'appearance' | 'chat' | 'analysis' | 'backend' | 'account' | 'data'>('appearance');
+  const [activeTab, setActiveTab] = useState<'appearance' | 'chat' | 'analysis' | 'account' | 'data'>('appearance');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [copiedExport, setCopiedExport] = useState(false);
 
@@ -108,17 +108,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <ShieldCheck className="w-4 h-4" />
             <span>Analysis Report</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('backend')}
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer text-left whitespace-nowrap ${
-              activeTab === 'backend' ? 'bg-blue-600/15 text-blue-400 border border-blue-500/30' : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
-          >
-            <Server className="w-4 h-4" />
-            <span>Python REST API</span>
           </button>
 
           <button
@@ -308,55 +297,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* Backend REST API Configuration Tab */}
-          {activeTab === 'backend' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Custom Python Backend Integration</span>
-                  <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-mono">REST API</span>
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
-                  Connect your custom Python hallucination-detection service (FastAPI/Flask) to substitute the built-in analyzer.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-black/40 border border-gray-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-semibold text-white">Use Live Python Backend URL</div>
-                    <div className="text-[11px] text-gray-400">
-                      Send queries to external endpoint; falls back if unreachable.
-                    </div>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.useLiveBackend}
-                    onChange={(e) => onUpdateSettings({ useLiveBackend: e.target.checked })}
-                    className="rounded border-gray-700 bg-gray-900 text-blue-600 focus:ring-0 cursor-pointer w-4 h-4"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-300 mb-1">
-                    REST API Endpoint URL
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.customBackendUrl}
-                    onChange={(e) => onUpdateSettings({ customBackendUrl: e.target.value })}
-                    placeholder="http://localhost:8000/api/chat"
-                    className="w-full p-2.5 rounded-xl bg-black/60 border border-gray-700 text-xs font-mono text-white focus:border-blue-500 outline-none"
-                  />
-                </div>
-
-                <div className="text-[11px] text-gray-400 bg-black/40 p-2.5 rounded-lg border border-gray-800 font-mono">
-                  Payload Schema: POST &#123; "prompt": "...", "model": "...", "attachments": [...] &#125;
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Account Tab */}
           {activeTab === 'account' && (
             <div className="space-y-4">
@@ -381,7 +321,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
+                    await logout();
                     onSignOut();
                     onClose();
                   }}

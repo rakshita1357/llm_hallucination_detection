@@ -9,7 +9,14 @@ import {
   AnalysisReportData 
 } from './types.ts';
 import { storageService, DEFAULT_SETTINGS, DEFAULT_USER } from './services/storageService.ts';
-import { sendChatMessage } from './services/apiService.ts';
+import { 
+  sendChatMessage, 
+  logout,
+  getAuthToken,
+  getStoredUser,
+  fetchChatSessions,
+  fetchChatMessages
+} from './services/apiService.ts';
 import { AVAILABLE_MODELS, DEFAULT_MODEL_ID } from './constants/models.ts';
 import { Sidebar } from './components/Sidebar/Sidebar.tsx';
 import { ChatHeader } from './components/Chat/ChatHeader.tsx';
@@ -27,8 +34,24 @@ export default function App() {
   const [conversations, setConversations] = useState<ChatConversation[]>(() => storageService.getConversations());
   const [activeChatId, setActiveChatId] = useState<string | null>(() => storageService.getActiveChatId() || 'chat-today-01');
   const [settings, setSettings] = useState<UserSettings>(() => storageService.getSettings());
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => storageService.getUserProfile());
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    // Check for stored user and token on initial load
+    const storedUser = getStoredUser();
+    const token = getAuthToken();
+    if (storedUser && token) {
+      return { ...storedUser, isLoggedIn: true };
+    }
+    return storageService.getUserProfile();
+  });
   const [selectedModelId, setSelectedModelId] = useState<ModelId>(settings.defaultModel || DEFAULT_MODEL_ID);
+
+  // Handle Sign Out
+  const handleSignOut = async () => {
+    await logout();
+    setUserProfile({ ...storageService.getUserProfile(), isLoggedIn: false });
+    setConversations([]);
+    setActiveChatId(null);
+  };
 
   // Execution & Step Animation State
   const [isLoading, setIsLoading] = useState(false);
@@ -105,6 +128,40 @@ export default function App() {
     storageService.saveUserProfile(userProfile);
   }, [userProfile]);
 
+  // Validate stored JWT on app start and load the user profile
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      setUserProfile({ ...storageService.getUserProfile(), isLoggedIn: false });
+      return;
+    }
+
+getMe()
+      .then(async (user) => {
+        if (user) {
+          setUserProfile({ ...user, isLoggedIn: true });
+          // Load chat sessions from database
+          const sessions = await fetchChatSessions();
+          setConversations(sessions.map(s => ({
+            id: s.id,
+            title: s.title,
+            createdAt: s.createdAt,
+            updatedAt: s.updatedAt,
+            modelId: s.modelId as ModelId,
+            messages: []
+          })));
+        } else {
+          // Invalid token – clear session
+          logout();
+          setUserProfile({ ...storageService.getUserProfile(), isLoggedIn: false });
+        }
+      })
+      .catch(() => {
+        logout();
+        setUserProfile({ ...storageService.getUserProfile(), isLoggedIn: false });
+      });
+  }, []);
+
   // Handle Model Selection
   const handleSelectModel = (modelId: ModelId) => {
     setSelectedModelId(modelId);
@@ -121,17 +178,34 @@ export default function App() {
   };
 
   // Select Existing Chat
-  const handleSelectChat = (id: string) => {
+  const handleSelectChat = async (id: string) => {
     setActiveChatId(id);
     const chat = conversations.find(c => c.id === id);
     if (chat) {
       setSelectedModelId(chat.modelId);
-      // Pick latest assistant message
-      const latestAi = [...chat.messages].reverse().find(m => m.role === 'assistant' && m.analysis);
-      if (latestAi) {
-        setActiveAnalysisMessageId(latestAi.id);
-      } else {
-        setActiveAnalysisMessageId(null);
+      // Load messages from API
+      try {
+        const messages = await fetchChatMessages(id);
+        // Update the chat with loaded messages
+        setConversations(prev => prev.map(c => 
+          c.id === id ? { ...c, messages } : c
+        ));
+        // Pick latest assistant message
+        const latestAi = [...messages].reverse().find(m => m.role === 'assistant' && m.analysis);
+        if (latestAi) {
+          setActiveAnalysisMessageId(latestAi.id);
+        } else {
+          setActiveAnalysisMessageId(null);
+        }
+      } catch (err) {
+        console.error('Failed to load messages:', err);
+        // Fallback to local messages
+        const latestAi = [...chat.messages].reverse().find(m => m.role === 'assistant' && m.analysis);
+        if (latestAi) {
+          setActiveAnalysisMessageId(latestAi.id);
+        } else {
+          setActiveAnalysisMessageId(null);
+        }
       }
     }
   };
@@ -163,9 +237,17 @@ export default function App() {
     modelId: ModelId, 
     attachments: AttachedFile[] = []
   ) => {
-    if (isLoading) return;
+  if (isLoading) return;
 
-    let targetChatId = activeChatId;
+      // Ensure user is authenticated before sending a chat request
+      const token = getAuthToken();
+      if (!token) {
+        // Open login modal
+        setIsAuthModalOpen(true);
+        return;
+      }
+
+      let targetChatId = activeChatId;
     let currentMessages: ChatMessage[] = [];
 
     const userMessage: ChatMessage = {
@@ -216,12 +298,21 @@ export default function App() {
         modelId,
         attachments,
         currentMessages,
-        settings.customBackendUrl,
-        settings.useLiveBackend,
         (step) => {
           setCurrentAnalysisStep(step);
         }
       );
+
+      // Handle new chat session ID from backend
+      if (result.chatSessionId && (!targetChatId || !conversations.some(c => c.id === targetChatId))) {
+        // This was a new chat - update the local chat ID
+        targetChatId = result.chatSessionId;
+        // Update the conversation list with the correct ID
+        setConversations(prev => prev.map(c => 
+          c.id === targetChatId ? { ...c, id: result.chatSessionId! } : c
+        ));
+        setActiveChatId(result.chatSessionId);
+      }
 
       const assistantMessage: ChatMessage = {
         id: `msg-ai-${Date.now()}`,
@@ -253,29 +344,35 @@ export default function App() {
       }
     } catch (err) {
       console.error('Error generating chat message:', err);
-      const errorMessage: ChatMessage = {
-        id: `msg-err-${Date.now()}`,
-        role: 'assistant',
-        modelId,
-        content: 'An error occurred while connecting to the verification engine. Please check your network or custom backend endpoint.',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        analysisStatus: 'unavailable',
-        analysis: {
-          confidence: 0,
-          status: 'analysis_unavailable',
-          findings: []
-        }
-      };
+      
+      // Handle authentication errors specifically
+      if (err instanceof Error && err.message.includes('Authentication required')) {
+        setIsAuthModalOpen(true);
+      } else {
+        const errorMessage: ChatMessage = {
+          id: `msg-err-${Date.now()}`,
+          role: 'assistant',
+          modelId,
+          content: 'An error occurred while connecting to the verification engine. Please check your network or custom backend endpoint.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          analysisStatus: 'unavailable',
+          analysis: {
+            confidence: 0,
+            status: 'analysis_unavailable',
+            findings: []
+          }
+        };
 
-      setConversations(prev => prev.map(c => {
-        if (c.id === targetChatId) {
-          return {
-            ...c,
-            messages: [...c.messages, errorMessage]
-          };
-        }
-        return c;
-      }));
+        setConversations(prev => prev.map(c => {
+          if (c.id === targetChatId) {
+            return {
+              ...c,
+              messages: [...c.messages, errorMessage]
+            };
+          }
+          return c;
+        }));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -350,7 +447,7 @@ export default function App() {
           setAuthModalMode(mode || 'signin');
           setIsAuthModalOpen(true);
         }}
-        onSignOut={() => setUserProfile({ ...DEFAULT_USER, isLoggedIn: false })}
+        onSignOut={handleSignOut}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isMobileOpen={isMobileSidebarOpen}
@@ -455,7 +552,7 @@ export default function App() {
         settings={settings}
         onUpdateSettings={(newSettings) => setSettings(prev => ({ ...prev, ...newSettings }))}
         userProfile={userProfile}
-        onSignOut={() => setUserProfile({ ...DEFAULT_USER, isLoggedIn: false })}
+        onSignOut={handleSignOut}
         onClearHistory={() => {
           storageService.clearAllData();
           setConversations([]);

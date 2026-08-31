@@ -8,3 +8,10 @@ spacy
 uvicorn
 fastapi
 pandas
+openai
+# Database
+sqlalchemy[asyncio]
+asyncpg
+alembic
+# Password hashing
+passlib[bcrypt]

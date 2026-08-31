@@ -1,6 +1,6 @@
 """Demo script for P1.1 Call 1 decomposition + triage."""
 
-from modules.call1_decomposition import call1_run
+from Backend.modules import call1_run
 
 
 def test_basic():
@@ -37,7 +37,7 @@ def test_keywords():
     ]
 
     for text, expected_approximately in test_cases:
-        from modules.call1_decomposition import _compute_self_confidence
+        from Backend.modules import _compute_self_confidence
         score = _compute_self_confidence(text)
         assert 0.0 <= score <= 1.0, f"Score {score} out of range [0,1]"
         print(f"  '{text}' -> confidence={score:.2f} (approx {expected_approximately})")
@@ -61,7 +61,7 @@ def test_needs_retrieval():
 def test_real_dataset():
     """Test with actual dataset entries."""
     import json
-    with open("data/raw/sample_dataset.json", "r") as f:
+    with open("../data/raw/sample_dataset.json", "r") as f:
         dataset = json.load(f)
 
     # Test entry 0: Python creation

@@ -26,10 +26,9 @@ without changes.
 
 from __future__ import annotations
 
-import json
 import os
 import re
-from modules import metrics
+from Backend.modules import metrics
 from typing import List, Dict, Optional
 
 # ---------------------------------------------------------------------------
@@ -40,11 +39,7 @@ _GOOGLE_API_KEY = None
 
 
 def _get_gemini_model():
-    """Lazy‑initialise the Gemini model using ``GOOGLE_API_KEY``.
-
-    Returns ``None`` when the environment variable is missing, allowing the
-    caller to fall back to a deterministic stub.
-    """
+    """Get or initialise the Gemini model, reading the API key from the environment."""
     global _gemini_model, _GOOGLE_API_KEY
     if _gemini_model is not None:
         return _gemini_model
@@ -53,12 +48,30 @@ def _get_gemini_model():
         _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
         if _GOOGLE_API_KEY:
             genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel("gemini-3.1-pro")
+            _gemini_model = genai.GenerativeModel('gemini-3.1-pro')
         else:
             _gemini_model = None
     except ImportError:
         _gemini_model = None
     return _gemini_model
+
+
+def _get_llm_client(model_name: str):
+    """Return a client object for the given LLM model name.
+
+    Supports:
+    - "gemini" – returns the Gemini model via _get_gemini_model.
+    - Other models are not supported in this module; verification should use
+      openrouter_verification.verify_claims instead.
+    """
+    model_name = model_name.lower()
+    if model_name == "gemini":
+        return _get_gemini_model()
+    # Other models (nemotron, glm, inkling) are handled via OpenRouter in
+    # openrouter_verification.py. This module only supports Gemini directly.
+    return None
+
+
 
 # ---------------------------------------------------------------------------
 # Prompt construction helpers
@@ -109,16 +122,16 @@ def _format_claim_batch(claims: List[Dict]) -> str:
 # Core verification logic
 # ---------------------------------------------------------------------------
 
-def _verify_batch(claims_batch: List[Dict]) -> List[Dict]:
+def _verify_batch(claims_batch: List[Dict], verification_model: str = "gemini") -> List[Dict]:
     """Verify a single batch of up to 20 claims using Gemini.
 
     Returns a list of ``{"id": ..., "verdict": ...}`` dictionaries.
     If the LLM call fails or returns malformed JSON, the function falls back
     to a heuristic based on ``self_confidence`` when available.
     """
-    model = _get_gemini_model()
+    model = _get_llm_client(verification_model)
     if model is None:
-        # No API key – deterministic fallback.
+        # No client – deterministic fallback.
         return [{"id": c.get("id", ""), "verdict": "insufficient_evidence"} for c in claims_batch]
 
     user_prompt = _format_claim_batch(claims_batch)
@@ -158,7 +171,7 @@ def _verify_batch(claims_batch: List[Dict]) -> List[Dict]:
     return fallback
 
 
-def call2_verify(claims: List[Dict], batch_size: int = 20) -> List[Dict]:
+def call2_verify(claims: List[Dict], batch_size: int = 20, verification_model: str = "gemini") -> List[Dict]:
     """Public API – verify all claims, respecting the hard batch limit.
 
     Parameters
@@ -182,7 +195,7 @@ def call2_verify(claims: List[Dict], batch_size: int = 20) -> List[Dict]:
     # Process in batches.
     for i in range(0, len(claims), batch_size):
         batch = claims[i : i + batch_size]
-        verdicts = _verify_batch(batch)
+        verdicts = _verify_batch(batch, verification_model)
         # Build a lookup for quick association.
         verdict_map = {v.get("id", ""): v.get("verdict", "insufficient_evidence") for v in verdicts}
         for claim in batch:

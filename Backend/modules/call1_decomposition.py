@@ -11,11 +11,10 @@ without touching the rest of the pipeline. Uses Gemini 3.1 Pro.
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import time
-from modules.free_signal import compute_claim_logprob_entropy
+from Backend.modules.free_signal import compute_claim_logprob_entropy
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Any, Tuple
 
@@ -29,7 +28,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import spacy
-from modules import metrics
+from Backend.modules import metrics
 
 # --- Load spaCy model (same as existing project) ---
 try:
@@ -244,8 +243,6 @@ def _fallback_rule_based(question: str, answer_text: str, token_logprobs: Option
 
     Used when the LLM call fails or is not available.
     """
-    from modules.call1_decomposition import _extract_atomic_claims_spacy, _compute_self_confidence, _generate_search_query
-
     # 1. Extract atomic claims using spaCy-based splitter
     raw_claims = _extract_atomic_claims_spacy(answer_text)
 
@@ -253,8 +250,10 @@ def _fallback_rule_based(question: str, answer_text: str, token_logprobs: Option
     claims: List = []
     for i, claim_text in enumerate(raw_claims, start=1):
         confidence = _compute_self_confidence(claim_text)
-        needs_retrieval = confidence < 0.5
-        search_query = _generate_search_query(claim_text) if needs_retrieval else None
+        # Always retrieve evidence for factual claims; self_confidence influences
+        # verification weighting, not retrieval gating.
+        needs_retrieval = True
+        search_query = _generate_search_query(claim_text)
 
         claim = Claim(
             id=f"c{i}",
