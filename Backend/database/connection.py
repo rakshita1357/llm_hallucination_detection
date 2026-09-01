@@ -34,7 +34,9 @@ def _get_database_url() -> str:
     """Get the database URL from environment variables.
 
     Returns:
-        The DATABASE_URL from environment, converted to use asyncpg driver.
+        The DATABASE_URL from environment, converted to use asyncpg driver,
+        with an explicit ``ssl=require`` param (Neon requires SSL, and
+        asyncpg does not understand the libpq-style ``sslmode`` param).
 
     Raises:
         RuntimeError: If DATABASE_URL is not set.
@@ -49,15 +51,19 @@ def _get_database_url() -> str:
     if url.startswith("postgresql://"):
         url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
     # Remove parameters that asyncpg doesn't support (channel_binding, sslmode)
-    # asyncpg uses 'ssl' parameter instead of 'sslmode'
+    # asyncpg uses 'ssl' parameter instead of 'sslmode' — add it explicitly
+    # since Neon requires SSL on every connection.
     if "?" in url:
         base, query = url.split("?", 1)
         params = query.split("&")
-        params = [p for p in params if not p.startswith("channel_binding=") and not p.startswith("sslmode=")]
-        if params:
-            url = base + "?" + "&".join(params)
-        else:
-            url = base
+        params = [
+            p for p in params
+            if not p.startswith("channel_binding=") and not p.startswith("sslmode=")
+        ]
+        params.append("ssl=require")
+        url = base + "?" + "&".join(params)
+    else:
+        url = url + "?ssl=require"
     return url
 
 
