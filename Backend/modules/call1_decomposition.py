@@ -11,6 +11,7 @@ without touching the rest of the pipeline. Uses Gemini 3.1 Pro.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -55,7 +56,7 @@ def _get_gemini_model():
         _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
         if _GOOGLE_API_KEY:
             genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel('gemini-3.1-pro')
+            _gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         else:
             _gemini_model = None
     except ImportError:
@@ -234,7 +235,7 @@ Decompose this answer into atomic claims following the format above.
 
     except Exception as e:
         # Log the error but return None to trigger fallback
-        print(f"LLM call failed: {e}")
+        print(f"[CALL1 LLM DECOMPOSE FAILED] {e!r}")
         return None
 
 
@@ -387,7 +388,6 @@ def call1_run(question: str, answer_text: str, token_logprobs: Optional[List[flo
 
 # --- Simple CLI for manual testing ---
 if __name__ == "__main__":
-    import json
     import sys
 
     if len(sys.argv) < 2:

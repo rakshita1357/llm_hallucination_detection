@@ -26,6 +26,7 @@ without changes.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from Backend.modules import metrics
@@ -48,7 +49,7 @@ def _get_gemini_model():
         _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
         if _GOOGLE_API_KEY:
             genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel('gemini-3.1-pro')
+            _gemini_model = genai.GenerativeModel('gemini-2.5-flash')
         else:
             _gemini_model = None
     except ImportError:
@@ -151,7 +152,7 @@ def _verify_batch(claims_batch: List[Dict], verification_model: str = "gemini") 
                 return data["verdicts"]
             print(f"Call2: malformed output on attempt {attempt + 1}, retrying...")
         except Exception as e:
-            print(f"Call2 verification failed (attempt {attempt + 1}): {e}")
+            print(f"[CALL2 VERIFY FAILED] attempt {attempt + 1}: {e!r}")
         attempt += 1
 
     # Fallback heuristic – rely on self_confidence if present.
@@ -209,7 +210,6 @@ def call2_verify(claims: List[Dict], batch_size: int = 20, verification_model: s
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     import sys
-    import json
 
     if len(sys.argv) < 2:
         print("Usage: python -m modules.call2_verification <claims_json_file>")

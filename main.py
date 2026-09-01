@@ -5,7 +5,7 @@
 * It also hosts a FastAPI application exposing the full Phase 1 pipeline via the
   ``/pipeline`` endpoint.
 
-The Gemini model used throughout the pipeline is ``gemini-3.1-pro`` (the
+The Gemini model used throughout the pipeline is ``gemini-2.5-flash`` (the
 fallback implementation works without an API key)."""
 
 import pandas as pd
@@ -231,7 +231,7 @@ async def _persist_chat_data(
 # -----------------------
 # New chat endpoint integrating answer generation and pipeline
 @app.post("/api/chat")
-def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user_optional)) -> ChatResponsePayload:
+async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current_user_optional)) -> ChatResponsePayload:
     """Generate an answer for the given prompt and run the hallucination detection pipeline.
 
     The frontend sends a JSON with the user prompt. This endpoint:
@@ -391,8 +391,8 @@ def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current
     # 11. Persist chat session, messages, and verification report (if user authenticated)
     chat_session_id: uuid.UUID | None = None
     if current_user is not None:
-        import asyncio
-        chat_session_id = asyncio.run(_persist_chat_data(
+
+        chat_session_id = await _persist_chat_data(
             user_id=current_user.id,
             prompt=request.prompt,
             answer_text=answer_text,
@@ -403,7 +403,7 @@ def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current
             overall_status=overall_status,
             findings=findings,
             escalation_rate=escalation_rate,
-        ))
+        )
 
     # 12. Assemble the final payload
     response = ChatResponsePayload(

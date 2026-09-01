@@ -9,16 +9,11 @@ the same keys, even when the real LLM is not configured.  This allows Call 1
 and other consumers to always rely on a consistent interface without None-
 checking for every field.
 
-Typical call sequence (outside this project):
-    1. Original LLM call (e.g., Gemini 3.1 Pro) with logprobs if available.
-    2. Result stored alongside the answer text as token_ids, logprobs, offsets.
-    3. `generate_answer()` is called with the question; the stored metadata
-       is returned so Call 1 can compute avg logprob per claim.
-
-Note: The current project has no Google API key configured and the
-pre-generated answers in data/raw/sample_dataset.json are plain strings
-without token metadata.  Running `generate_answer()` without an API key
-will return a structured placeholder indicating the limitation.
+Generation backends:
+    - Gemini (Google) — direct google.generativeai client.
+    - NVIDIA NIM (OpenAI-compatible endpoint) — serves openai/gpt-oss-120b
+      and other NIM-hosted models via the standard OpenAI SDK pointed at
+      NVIDIA's base_url.
 """
 
 from __future__ import annotations
@@ -31,10 +26,20 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Model names — change here once, used everywhere in this module.
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
+NVIDIA_NIM_MODEL_NAME = "openai/gpt-oss-120b"
+NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
+
 
 def _get_google_api_key() -> Optional[str]:
     """Read the Google API key from the environment; never hard-code it."""
     return os.getenv("GOOGLE_API_KEY")
+
+
+def _get_nvidia_nim_api_key() -> Optional[str]:
+    """Read the NVIDIA NIM API key from the environment; never hard-code it."""
+    return os.getenv("NVIDIA_NIM_API")
 
 
 def _fallback_answer(question: str) -> str:
@@ -75,7 +80,7 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
     api_key = os.getenv("GOOGLE_API_KEY")
     genai.configure(api_key=api_key)
 
-    model = genai.GenerativeModel('gemini-3.1-pro')
+    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
     response = model.generate_content(
         question,
@@ -101,7 +106,7 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
         "offsets": offsets,
         "generation_successful": True,
         "metadata": {
-            "model": "gemini-3.1-pro",
+            "model": GEMINI_MODEL_NAME,
             "question": question,
             "api_key_present": True,
             "note": "Token logprobs not available from Gemini API",
@@ -109,11 +114,12 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
     }
 
 
-def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> Dict[str, Any]:
+def generate_answer(question: str, generation_model: str = "gemini-2.5-flash") -> Dict[str, Any]:
     """Generate an LLM answer to the given question using the selected generation model.
 
-    Supports Gemini (Google) and ChatGPT (OpenAI). If the required API key or library
-    is missing, falls back to a deterministic placeholder answer.
+    Supports Gemini (Google) and NVIDIA NIM (OpenAI-compatible, e.g. openai/gpt-oss-120b).
+    If the required API key or library is missing, falls back to a deterministic
+    placeholder answer.
     """
     model_key = generation_model.lower()
     # -------------------------------------------------
@@ -124,6 +130,7 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
         if not api_key:
             # Fallback placeholder answer
             answer_text = _fallback_answer(question)
+            print("[GEMINI CALL SKIPPED] GOOGLE_API_KEY not configured")
             return {
                 "answer_text": answer_text,
                 "token_ids": None,
@@ -132,7 +139,7 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
                 "generation_successful": False,
                 "metadata": {
                     "reason": "GOOGLE_API_KEY_not_configured",
-                    "model": "gemini-3.1-pro",
+                    "model": GEMINI_MODEL_NAME,
                     "question": question,
                 },
             }
@@ -140,6 +147,7 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
             return _call_gemini_generate(question)
         except Exception as e:
             # Provide a sentence fallback instead of None so the pipeline can extract claims
+            print(f"[GEMINI CALL FAILED] {e!r}")
             fallback_text = _fallback_answer(question)
             return {
                 "answer_text": fallback_text,
@@ -149,50 +157,51 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
                 "generation_successful": False,
                 "metadata": {
                     "reason": f"gemini_call_failed: {e}",
-                    "model": "gemini-3.1-pro",
+                    "model": GEMINI_MODEL_NAME,
                     "question": question,
                 },
             }
     # -------------------------------------------------
-    # ChatGPT / OpenAI generation path
+    # NVIDIA NIM generation path (OpenAI-compatible endpoint)
+    # Serves models like "openai/gpt-oss-120b". Triggered by "gpt", "nim",
+    # or "nvidia" appearing in the requested model string.
     # -------------------------------------------------
-    if "chatgpt" in model_key or "gpt" in model_key:
+    if "gpt" in model_key or "nim" in model_key or "nvidia" in model_key:
         try:
-            import openai
+            from openai import OpenAI
         except Exception:
-            answer_text = None
+            print("[OPENAI PACKAGE NOT AVAILABLE]")
             return {
-                "answer_text": answer_text,
+                "answer_text": None,
                 "token_ids": None,
                 "logprobs": None,
                 "offsets": None,
                 "generation_successful": False,
                 "metadata": {
                     "reason": "openai_package_not_available",
-                    "model": "chatgpt-4o",
+                    "model": NVIDIA_NIM_MODEL_NAME,
                     "question": question,
                 },
             }
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = _get_nvidia_nim_api_key()
         if not api_key:
-            answer_text = None
+            print("[NVIDIA NIM CALL SKIPPED] NVIDIA_NIM_API not configured")
             return {
-                "answer_text": answer_text,
+                "answer_text": None,
                 "token_ids": None,
                 "logprobs": None,
                 "offsets": None,
                 "generation_successful": False,
                 "metadata": {
-                    "reason": "OPENAI_API_KEY_not_configured",
-                    "model": "chatgpt-4o",
+                    "reason": "NVIDIA_NIM_API_not_configured",
+                    "model": NVIDIA_NIM_MODEL_NAME,
                     "question": question,
                 },
             }
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=api_key)
+            client = OpenAI(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL)
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=NVIDIA_NIM_MODEL_NAME,
                 messages=[{"role": "user", "content": question}],
                 temperature=0.7,
                 max_tokens=500,
@@ -205,12 +214,13 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
                 "offsets": None,
                 "generation_successful": True,
                 "metadata": {
-                    "model": "chatgpt-4o",
+                    "model": NVIDIA_NIM_MODEL_NAME,
                     "question": question,
                     "api_key_present": True,
                 },
             }
         except Exception as e:
+            print(f"[NVIDIA NIM CALL FAILED] {e!r}")
             return {
                 "answer_text": None,
                 "token_ids": None,
@@ -218,14 +228,15 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
                 "offsets": None,
                 "generation_successful": False,
                 "metadata": {
-                    "reason": f"openai_call_failed: {e}",
-                    "model": "chatgpt-4o",
+                    "reason": f"nvidia_nim_call_failed: {e}",
+                    "model": NVIDIA_NIM_MODEL_NAME,
                     "question": question,
                 },
             }
     # -------------------------------------------------
     # Unknown or unsupported generation model – fallback
     # -------------------------------------------------
+    print(f"[UNSUPPORTED GENERATION MODEL] {generation_model!r}")
     answer_text = None
     return {
         "answer_text": answer_text,
@@ -239,22 +250,3 @@ def generate_answer(question: str, generation_model: str = "gemini-2-5-pro") -> 
             "question": question,
         },
     }
-
-    try:
-        return _call_gemini_generate(question)
-    except Exception as e:
-        # API call failed — return a structured placeholder rather than
-        # propagating an exception upwards.  This keeps the Call 1 pipeline
-        # stable and makes it clear that metadata is unavailable.
-        return {
-            "answer_text": None,
-            "token_ids": None,
-            "logprobs": None,
-            "offsets": None,
-            "generation_successful": False,
-            "metadata": {
-                "reason": f"gemini_call_failed: {e}",
-                "model": "gemini-3.1-pro",
-                "question": question,
-            },
-        }

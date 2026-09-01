@@ -7,12 +7,14 @@ dictionary matching the format used elsewhere in the project.
 
 If the API key is missing or the call fails, a deterministic placeholder
 is returned so downstream code can continue without raising an exception.
-'''"""
+'''
 
 from __future__ import annotations
 
 import os
 from typing import Any, Dict
+
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
 # Lazy import of the Gemini client – this file may be imported even when the
 # required library or API key is not available (e.g., during tests).
@@ -39,7 +41,7 @@ def _get_gemini_model() -> "Any | None":
         _gemini_model = None
         return None
     genai.configure(api_key=_GOOGLE_API_KEY)
-    _gemini_model = genai.GenerativeModel("gemini-3.1-pro")
+    _gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
     return _gemini_model
 
 
@@ -57,7 +59,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
         "offsets": [],
         "generation_successful": true,
         "metadata": {
-            "model": "gemini-3.1-pro",
+            "model": "gemini-2.5-flash",
             "question": "...",
             "api_key_present": true,
             "note": "..."
@@ -68,6 +70,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
     model = _get_gemini_model()
     if model is None:
         # Deterministic fallback – no Gemini access.
+        print("[GEMINI ANSWER SKIPPED] GOOGLE_API_KEY not configured or google.generativeai unavailable")
         return {
             "answer_text": None,
             "token_ids": None,
@@ -76,7 +79,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
             "generation_successful": False,
             "metadata": {
                 "reason": "GOOGLE_API_KEY_not_configured_or_missing_dependency",
-                "model": "gemini-3.1-pro",
+                "model": GEMINI_MODEL_NAME,
                 "question": prompt,
             },
         }
@@ -95,14 +98,15 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
             "offsets": [],
             "generation_successful": True,
             "metadata": {
-                "model": "gemini-3.1-pro",
+                "model": GEMINI_MODEL_NAME,
                 "question": prompt,
                 "api_key_present": True,
                 "note": "Token‑level logprobs not available via Gemini API",
             },
         }
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
         # Gracefully degrade on unexpected errors.
+        print(f"[GEMINI ANSWER FAILED] {exc!r}")
         return {
             "answer_text": None,
             "token_ids": None,
@@ -111,7 +115,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
             "generation_successful": False,
             "metadata": {
                 "reason": f"gemini_call_failed: {exc}",
-                "model": "gemini-3.1-pro",
+                "model": GEMINI_MODEL_NAME,
                 "question": prompt,
             },
         }

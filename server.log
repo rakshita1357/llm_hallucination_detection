@@ -16,8 +16,8 @@ See README for more details:
 https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
 
   import google.generativeai as genai
-LLM call failed: 404 models/gemini-3.1-pro is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
-LLM call failed: 404 models/gemini-3.1-pro is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+LLM call failed: 404 models/gemini-2.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+LLM call failed: 404 models/gemini-2.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
 [Escalation warning] Residual set size 1/1 exceeds 15% – consider reviewing the cap.
 INFO:     127.0.0.1:47858 - "POST /api/chat HTTP/1.1" 200 OK
 INFO:     127.0.0.1:39534 - "GET /health HTTP/1.1" 200 OK
