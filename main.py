@@ -61,7 +61,13 @@ from Backend.modules import _SYSTEM_PROMPT, _format_claim_batch
 # Auth
 from Backend.auth import auth_router
 from Backend.auth.utils import get_current_user, get_current_user_optional
-from Backend.database.models import User
+from Backend.database.models import (
+    User,
+    MessageRole,
+    VerificationStatus,
+    ClaimVerdict,
+    SourceType,
+)
 from Backend.database.repositories import (
     ChatSessionRepository,
     MessageRepository,
@@ -421,7 +427,7 @@ def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_current
 # allow_origins=["*"] is incompatible with allow_credentials=True per CORS spec.
 # Use specific origins. Default to Vite dev server origin; override via CORS_ORIGINS env var.
 import os
-_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+_cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

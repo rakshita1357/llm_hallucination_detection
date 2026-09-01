@@ -14,6 +14,7 @@ import {
   logout,
   getAuthToken,
   getStoredUser,
+  getMe,
   fetchChatSessions,
   fetchChatMessages
 } from './services/apiService.ts';

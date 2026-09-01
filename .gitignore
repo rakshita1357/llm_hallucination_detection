@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .env
 .env.example
+venv/
 
 .ipynb_checkpoints/
 .idea/
