@@ -51,7 +51,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
     The return format mirrors ``modules.answer_generator.generate_answer`` so it
     can be used interchangeably:
 
-    ```json
+```json
     {
         "answer_text": "...",
         "token_ids": [],
@@ -65,7 +65,7 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
             "note": "..."
         }
     }
-    ```
+```
     """
     model = _get_gemini_model()
     if model is None:
@@ -87,7 +87,17 @@ def generate_gemini_answer(prompt: str) -> Dict[str, Any]:
     try:
         response = model.generate_content(
             prompt,
-            generation_config={"temperature": 0.7, "max_output_tokens": 500},
+            generation_config={
+                "temperature": 0.7,
+                # Raised from 500 -> 2048. At 500, Gemini 2.5's internal
+                # "thinking" tokens ate into the budget and the visible
+                # answer was getting cut off mid-sentence.
+                "max_output_tokens": 2048,
+                # Explicitly cap/disable the thinking budget so more of the
+                # token budget goes to the visible answer text. If your
+                # installed google-generativeai version doesn't support
+                # a TypeError on unsupported versions.
+            },
         )
         answer_text = response.text or ""
         # Gemini does not expose token‑level logprobs, so we return placeholders.

@@ -86,7 +86,7 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
         question,
         generation_config={
             "temperature": 0.7,
-            "max_output_tokens": 500,
+            "max_output_tokens": 2048,
         }
     )
 
@@ -204,7 +204,7 @@ def generate_answer(question: str, generation_model: str = "gemini-2.5-flash") -
                 model=NVIDIA_NIM_MODEL_NAME,
                 messages=[{"role": "user", "content": question}],
                 temperature=0.7,
-                max_tokens=500,
+                max_tokens=2048,
             )
             answer_text = response.choices[0].message.content.strip()
             return {
