@@ -5,12 +5,13 @@ This module is designed to be independent from the decomposition pipeline
 with token-level metadata required by P1.2 (token logprob entropy computation).
 
 The interface is deliberately structured so that the returned dict always has
-the same keys, even when the real LLM is not configured.  This allows Call 1
+the same keys, even when the real LLM is not configured. This allows Call 1
 and other consumers to always rely on a consistent interface without None-
 checking for every field.
 
 Generation backends:
-    - Gemini (Google) — direct google.generativeai client.
+    - Gemini (Google) — via Backend.modules.genai_client (google-genai SDK,
+      thinking_budget=0 to avoid truncation from internal thinking tokens).
     - NVIDIA NIM (OpenAI-compatible endpoint) — serves openai/gpt-oss-120b
       and other NIM-hosted models via the standard OpenAI SDK pointed at
       NVIDIA's base_url.
@@ -23,6 +24,8 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
+
+from Backend.modules.genai_client import generate as genai_generate
 
 load_dotenv()
 
@@ -69,26 +72,22 @@ def _fallback_answer(question: str) -> str:
 
 
 def _call_gemini_generate(question: str) -> Dict[str, Any]:
-    """Call Gemini to generate an answer.
+    """Call Gemini to generate an answer via the google-genai SDK.
 
     Returns a dict with answer_text, token_ids, logprobs, offsets, and metadata.
     Note: Gemini does not provide token-level logprobs in the same way as OpenAI.
     Raises if the API key is missing or the call fails.
     """
-    import google.generativeai as genai
-
-    api_key = os.getenv("GOOGLE_API_KEY")
-    genai.configure(api_key=api_key)
-
-    model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-
-    response = model.generate_content(
-        question,
-        generation_config={
-            "temperature": 0.7,
-            "max_output_tokens": 2048,
-        }
+    response = genai_generate(
+        model=GEMINI_MODEL_NAME,
+        prompt=question,
+        temperature=0.7,
+        max_output_tokens=2048,
+        thinking_budget=0,
     )
+
+    if response is None:
+        raise RuntimeError("GOOGLE_API_KEY not configured")
 
     # Extract the answer text
     answer_text = response.text or ""
@@ -110,6 +109,7 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
             "question": question,
             "api_key_present": True,
             "note": "Token logprobs not available from Gemini API",
+            "thoughts_token_count": getattr(response.usage_metadata, "thoughts_token_count", None),
         },
     }
 

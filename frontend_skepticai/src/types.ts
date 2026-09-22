@@ -1,9 +1,9 @@
-export type ModelId = 'chatgpt-4o' | 'gemini-2-5-pro' | 'gemini-2-5-flash';
+export type ModelId = 'gemini-2-5-pro' | 'gemini-2-5-flash' | 'nvidia-nim-gpt-oss-120b';
 
 export interface AIModel {
   id: ModelId;
   name: string;
-  provider: 'OpenAI' | 'Google' | 'Anthropic';
+  provider: 'OpenAI' | 'Google' | 'Anthropic' | 'NVIDIA';
   description: string;
   contextWindow: string;
   tag: string;

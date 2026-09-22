@@ -88,7 +88,7 @@ Einstein was later nominated for the Nobel Peace Prize in 1954 by Linus Pauling,
     title: 'Quantum Battery 3500-Mile Range Claim',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(), // 28 hours ago (yesterday)
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 28).toISOString(),
-    modelId: 'chatgpt-4o',
+    modelId: 'gemini-2-5-pro',
     messages: [
       {
         id: 'msg-3',
@@ -99,7 +99,7 @@ Einstein was later nominated for the Nobel Peace Prize in 1954 by Linus Pauling,
       {
         id: 'msg-4',
         role: 'assistant',
-        modelId: 'chatgpt-4o',
+        modelId: 'gemini-2-5-pro',
         content: `The **Quantex-400 solid-state quantum battery** was patented in March 2024 by Dr. Sarah Lin at the Oxford Quantum Energy Lab. 
 
 It utilizes entangled diamond NV-centers to achieve a continuous energy density of 4,800 Wh/kg, allowing consumer electric vehicles to travel over 3,500 miles on a single 4-minute recharge without thermal degradation over 50 years.`,
@@ -145,7 +145,7 @@ It utilizes entangled diamond NV-centers to achieve a continuous energy density 
             }
           ],
           analyzedAt: 'Yesterday 14:15',
-          modelUsed: 'chatgpt-4o',
+          modelUsed: 'gemini-2-5-pro',
           latencyMs: 1890
         }
       }
@@ -156,7 +156,7 @@ It utilizes entangled diamond NV-centers to achieve a continuous energy density 
     title: 'Transformer Attention Mechanisms Formula',
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(), // 4 days ago
     updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4).toISOString(),
-    modelId: 'claude-3-5-sonnet',
+    modelId: 'gemini-2-5-pro',
     messages: [
       {
         id: 'msg-5',
@@ -167,7 +167,7 @@ It utilizes entangled diamond NV-centers to achieve a continuous energy density 
       {
         id: 'msg-6',
         role: 'assistant',
-        modelId: 'claude-3-5-sonnet',
+        modelId: 'gemini-2-5-pro',
         content: `The **Transformer architecture**, introduced by Vaswani et al. in the landmark 2017 paper *"Attention Is All You Need"*, revolutionized natural language processing by replacing recurrent neural networks (RNNs) with multi-head self-attention mechanisms.
 
 ### Core Mathematical Mechanics
@@ -199,7 +199,7 @@ Transformers eliminate sequential bottlenecks, allowing vast parallelization dur
           flaggedFindingsCount: 0,
           findings: [],
           analyzedAt: '4 days ago',
-          modelUsed: 'claude-3-5-sonnet',
+          modelUsed: 'gemini-2-5-pro',
           latencyMs: 1150
         }
       }

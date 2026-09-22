@@ -33,13 +33,11 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const getModelIcon = (id: ModelId) => {
     switch (id) {
-      case 'chatgpt-4o':
+      case 'nvidia-nim-gpt-oss-120b':
         return <Cpu className="w-4 h-4 text-emerald-400" />;
       case 'gemini-2-5-pro':
       case 'gemini-2-5-flash':
         return <Sparkles className="w-4 h-4 text-blue-400" />;
-      case 'claude-3-5-sonnet':
-        return <Zap className="w-4 h-4 text-amber-400" />;
       default:
         return <Sparkles className="w-4 h-4 text-blue-400" />;
     }

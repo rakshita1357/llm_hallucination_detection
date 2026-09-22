@@ -19,9 +19,10 @@ If the Gemini API key is not configured, a deterministic fallback is used:
 * Every claim receives the verdict ``insufficient_evidence`` – this mirrors the
   behavior expected when retrieval yields no evidence.
 
-The implementation mirrors the style of `modules.call1_decomposition` and keeps
-the LLM interaction isolated so the rest of the pipeline can be swapped out
-without changes.
+Migrated to the modern `google-genai` SDK (via Backend.modules.genai_client)
+with thinking_budget=0, so the full max_output_tokens budget goes to the
+visible JSON output instead of being silently consumed by internal
+"thinking" tokens.
 """
 
 from __future__ import annotations
@@ -30,48 +31,26 @@ import json
 import os
 import re
 from Backend.modules import metrics
+from Backend.modules.genai_client import generate as genai_generate, get_client as genai_get_client
 from typing import List, Dict, Optional
 
-# ---------------------------------------------------------------------------
-# Gemini model handling (identical to call1_decomposition for consistency)
-# ---------------------------------------------------------------------------
-_gemini_model = None
-_GOOGLE_API_KEY = None
-
-
-def _get_gemini_model():
-    """Get or initialise the Gemini model, reading the API key from the environment."""
-    global _gemini_model, _GOOGLE_API_KEY
-    if _gemini_model is not None:
-        return _gemini_model
-    try:
-        import google.generativeai as genai
-        _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
-        if _GOOGLE_API_KEY:
-            genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel('gemini-2.5-flash')
-        else:
-            _gemini_model = None
-    except ImportError:
-        _gemini_model = None
-    return _gemini_model
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
 
 def _get_llm_client(model_name: str):
-    """Return a client object for the given LLM model name.
+    """Return a truthy marker if the given model name is usable, else None.
 
     Supports:
-    - "gemini" – returns the Gemini model via _get_gemini_model.
+    - "gemini" – checks that a genai client can be constructed (API key present).
     - Other models are not supported in this module; verification should use
       openrouter_verification.verify_claims instead.
     """
     model_name = model_name.lower()
     if model_name == "gemini":
-        return _get_gemini_model()
+        return genai_get_client()
     # Other models (nemotron, glm, inkling) are handled via OpenRouter in
     # openrouter_verification.py. This module only supports Gemini directly.
     return None
-
 
 
 # ---------------------------------------------------------------------------
@@ -97,13 +76,11 @@ def _format_claim_batch(claims: List[Dict]) -> str:
 
     The format is deliberately simple so the LLM can reliably parse it.
     Each claim is rendered as:
-    ```
-    ID: <id>
-    Claim: <text>
-    Evidence:
-    - <snippet 1>
-    - <snippet 2>
-    ```
+ID: <id>
+Claim: <text>
+Evidence:
+- <snippet 1>
+- <snippet 2>
     Blank lines separate claims.
     """
     parts: List[str] = []
@@ -130,8 +107,8 @@ def _verify_batch(claims_batch: List[Dict], verification_model: str = "gemini") 
     If the LLM call fails or returns malformed JSON, the function falls back
     to a heuristic based on ``self_confidence`` when available.
     """
-    model = _get_llm_client(verification_model)
-    if model is None:
+    client = _get_llm_client(verification_model)
+    if client is None:
         # No client – deterministic fallback.
         return [{"id": c.get("id", ""), "verdict": "insufficient_evidence"} for c in claims_batch]
 
@@ -140,13 +117,24 @@ def _verify_batch(claims_batch: List[Dict], verification_model: str = "gemini") 
     while attempt < 2:
         metrics.increment_llm_calls()
         try:
-            response = model.generate_content(
-                _SYSTEM_PROMPT + "\n\n" + user_prompt,
-                generation_config={"temperature": 0.0, "max_output_tokens": 2000},
+            response = genai_generate(
+                model=GEMINI_MODEL_NAME,
+                prompt=_SYSTEM_PROMPT + "\n\n" + user_prompt,
+                temperature=0.0,
+                max_output_tokens=3000,
+                thinking_budget=0,
             )
-            content = response.text or ""
-            json_match = re.search(r"\{.*\}", content, re.DOTALL)
-            json_str = json_match.group(0) if json_match else content
+            content = (response.text if response is not None else "") or ""
+
+            # Strip markdown code fences if present (same issue seen in Call 1).
+            cleaned = content.strip()
+            if cleaned.startswith("```"):
+                cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
+                cleaned = re.sub(r"```\s*$", "", cleaned)
+                cleaned = cleaned.strip()
+
+            json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+            json_str = json_match.group(0) if json_match else cleaned
             data = json.loads(json_str)
             if isinstance(data, dict) and "verdicts" in data and isinstance(data["verdicts"], list):
                 return data["verdicts"]

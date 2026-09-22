@@ -6,7 +6,12 @@ confidence and retrieval flags.
 
 This module is deliberately modular and beginner-friendly. The LLM call is
 isolated in `call1_run()` so it can be replaced with a real LLM invocation
-without touching the rest of the pipeline. Uses Gemini 3.1 Pro.
+without touching the rest of the pipeline.
+
+Migrated to the modern `google-genai` SDK (via Backend.modules.genai_client)
+with thinking_budget=0, so the full max_output_tokens budget goes to the
+visible JSON output instead of being silently consumed by internal
+"thinking" tokens (the root cause of earlier truncation/JSON-parse failures).
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ import os
 import re
 import time
 from Backend.modules.free_signal import compute_claim_logprob_entropy
+from Backend.modules.genai_client import generate as genai_generate, get_client as genai_get_client
 from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Any, Tuple
 
@@ -41,28 +47,7 @@ except OSError:
     if not _nlp.has_pipe("sentencizer"):
         _nlp.add_pipe("sentencizer")
 
-# --- Gemini client (lazy-initialised so the module can import without an API key) ---
-_gemini_model = None
-_GOOGLE_API_KEY = None
-
-
-def _get_gemini_model():
-    """Get or initialise the Gemini model, reading the API key from the environment."""
-    global _gemini_model, _GOOGLE_API_KEY
-    if _gemini_model is not None:
-        return _gemini_model
-    try:
-        import google.generativeai as genai
-        _GOOGLE_API_KEY = _GOOGLE_API_KEY or os.getenv("GOOGLE_API_KEY")
-        if _GOOGLE_API_KEY:
-            genai.configure(api_key=_GOOGLE_API_KEY)
-            _gemini_model = genai.GenerativeModel('gemini-2.5-flash')
-        else:
-            _gemini_model = None
-    except ImportError:
-        _gemini_model = None
-    return _gemini_model
-
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 
 # --- Uncertainty keywords that lower self-confidence ---
 _LOW_CONFIDENCE_KEYWORDS = {
@@ -168,12 +153,11 @@ def _extract_atomic_claims_spacy(text: str) -> List[str]:
 def _call_llm_decompose(question: str, answer_text: str) -> Optional[Dict[str, Any]]:
     """Call the LLM to decompose the answer into atomic claims.
 
-    Sends the question and answer to Gemini's chat completion endpoint with a
-    structured prompt requesting atomic claims in JSON format. Returns the
-    parsed result, or None if the call fails or the API key is not available.
+    Sends the question and answer to Gemini with a structured prompt
+    requesting atomic claims in JSON format. Returns the parsed result,
+    or None if the call fails or the API key is not available.
     """
-    model = _get_gemini_model()
-    if model is None:
+    if genai_get_client() is None:
         return None
 
     system_prompt = """You are an AI assistant tasked with decomposing an LLM-generated answer into atomic, independently verifiable claims.
@@ -207,23 +191,42 @@ Decompose this answer into atomic claims following the format above.
     try:
         metrics.increment_llm_calls()
         start = time.perf_counter()
-        response = model.generate_content(
-            system_prompt + "\n\n" + user_prompt,
-            generation_config={
-                "temperature": 0.0,
-                "max_output_tokens": 1000,
-            }
+        response = genai_generate(
+            model=GEMINI_MODEL_NAME,
+            prompt=system_prompt + "\n\n" + user_prompt,
+            temperature=0.0,
+            max_output_tokens=4096,
+            thinking_budget=0,
         )
         elapsed = time.perf_counter() - start
         metrics.add_latency(elapsed)
-        content = response.text
+
+        if response is None:
+            return None
+
+        content = response.text or ""
+        try:
+            print(f"[CALL1 DEBUG] finish_reason: {response.candidates[0].finish_reason}")
+            print(f"[CALL1 DEBUG] usage_metadata: {response.usage_metadata}")
+        except Exception as _dbg_e:
+            print(f"[CALL1 DEBUG] could not read finish_reason/usage: {_dbg_e!r}")
+        print(f"[CALL1 DEBUG] raw response.text repr: {content!r}")
+
+        # Strip markdown code fences (```json ... ``` or ``` ... ```) if present,
+        # since Gemini sometimes wraps JSON output in them regardless of the
+        # "no text outside JSON" instruction in the prompt.
+        cleaned = content.strip()
+        if cleaned.startswith("```"):
+            cleaned = re.sub(r"^```[a-zA-Z]*\n?", "", cleaned)
+            cleaned = re.sub(r"```\s*$", "", cleaned)
+            cleaned = cleaned.strip()
 
         # Find the JSON block in the response
-        json_match = re.search(r"\{.*\}", content, re.DOTALL)
+        json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
         if json_match:
             json_str = json_match.group(0)
         else:
-            json_str = content
+            json_str = cleaned
 
         parsed = json.loads(json_str)
 
