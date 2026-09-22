@@ -354,7 +354,12 @@ async def chat_endpoint(request: ChatRequest, current_user: User = Depends(get_c
         if full_claim.get("evidence"):
             first = full_claim["evidence"][0]
             if isinstance(first, dict):
-                source = {"title": "", "url": "", "domain": first.get("source", ""), "snippet": ""}
+                source = {
+                    "title": first.get("title", ""),
+                    "url": first.get("source", ""),
+                    "domain": first.get("source", ""),
+                    "snippet": first.get("snippet", ""),
+                }
         findings.append({
             "claim": entry.get("text", ""),
             "status": status,

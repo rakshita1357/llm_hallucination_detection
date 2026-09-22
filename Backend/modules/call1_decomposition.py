@@ -176,6 +176,7 @@ Rules:
 4. If needs_retrieval is true, provide a search_query string; if needs_retrieval is false, set search_query to null.
 5. Output MUST be a valid JSON object with a single key "claims" mapping to an array of claim objects.
 6. Do not include any reasoning, explanation, or text outside the JSON.
+7. Produce AT MOST 20 claims total, even if the answer is long. Merge closely related facts into a single claim instead of splitting every item of a list into its own claim (e.g., "The Green Revolution provided seeds, fertilizer, irrigation, and credit" should be ONE claim, not four). Prioritize the most significant, independently checkable factual assertions over exhaustive coverage.
 
 Format your response as a single JSON object:
 {"claims": [{"id": "c1", "text": "...", "self_confidence": 0.8, "needs_retrieval": true, "search_query": "..."}]}

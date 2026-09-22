@@ -15,8 +15,8 @@ from Backend.modules.call1_decomposition import call1_run
 # Retrieval
 from Backend.modules.retrieval import retrieve_for_claims
 
-# Verification
-from Backend.modules.openrouter_verification import (
+# Verification (NVIDIA NIM — replaces OpenRouter; same interface)
+from Backend.modules.nim_verification import (
     verify_claims,
     VERIFICATION_MODEL_IDS,
 )

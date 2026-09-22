@@ -21,7 +21,26 @@ export const AVAILABLE_MODELS: AIModel[] = [
     badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
     iconName: 'gemini'
   },
-
+  {
+    id: 'nvidia/nemotron-3-super-120b-a12b',
+    name: 'Nemotron 3 Super 120B (NVIDIA NIM)',
+    provider: 'NVIDIA',
+    description: 'Lightweight 120B MoE model with 12B active params, optimized for verification.',
+    contextWindow: '128k tokens',
+    tag: 'NVIDIA NIM',
+    badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    iconName: 'cpu'
+  },
+  {
+    id: 'google/gemma-4-31b-it',
+    name: 'Gemma 4 31B IT (NVIDIA NIM)',
+    provider: 'Google',
+    description: 'Lightweight 31B instruction-tuned model, optimized for verification.',
+    contextWindow: '128k tokens',
+    tag: 'NVIDIA NIM',
+    badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    iconName: 'gemini'
+  },
 
 ];
 

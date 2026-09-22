@@ -131,7 +131,10 @@ def _search(query: str, top_k: int = 3) -> List[Dict[str, str]]:
         "query": query,
         "type": "auto",
         "num_results": top_k,
-        "contents": {"highlights": True},
+        "contents": {
+            "highlights": {"numSentences": 3, "highlightsPerUrl": 1, "query": query},
+            "text": {"maxCharacters": 500},
+        },
     }
     try:
         resp = requests.post("https://api.exa.ai/search", json=payload, headers=headers, timeout=10)
@@ -140,15 +143,29 @@ def _search(query: str, top_k: int = 3) -> List[Dict[str, str]]:
         results: List[Dict[str, str]] = []
         for item in data.get("results", [])[:top_k]:
             snippet = ""
-            if isinstance(item.get("contents"), dict):
-                snippet = item["contents"].get("highlights") or item["contents"].get("excerpt") or ""
+            contents = item.get("contents")
+            if isinstance(contents, dict):
+                highlights = contents.get("highlights")
+            else:
+                # Exa also returns highlights/text as top-level keys on some
+                # API versions rather than nested under "contents".
+                highlights = item.get("highlights")
+            if isinstance(highlights, list) and highlights:
+                snippet = " ".join(str(h) for h in highlights if h)
+            elif isinstance(highlights, str):
+                snippet = highlights
+            if not snippet:
+                text = contents.get("text") if isinstance(contents, dict) else item.get("text")
+                if isinstance(text, str):
+                    snippet = text
             results.append({
                 "snippet": snippet,
                 "source": item.get("url", ""),
                 "title": item.get("title", ""),
             })
         return results
-    except Exception:
+    except Exception as e:
+        print(f"[EXA SEARCH FAILED] {e!r}")
         return []
 
 # ---------------------------------------------------------------------------

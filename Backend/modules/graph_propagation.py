@@ -64,10 +64,21 @@ def propagate_claims(claims: List[Dict], edges: List[Dict]) -> List[Dict]:
     # Shallow copy of claims to avoid mutating caller data.
     claim_map: Dict[str, Dict] = {c["id"]: dict(c) for c in claims if "id" in c}
 
-    # Initialise effective confidence from the verdict.
+    # Initialise effective confidence from the claim's own self_confidence
+    # when available (this preserves the real variation computed by Call 1
+    # and by aggregation.py's evidence-weighted scoring), falling back to a
+    # flat verdict-based default only when self_confidence is missing.
+    # Previously this always overwrote effective_confidence with a flat
+    # per-verdict constant (e.g. every insufficient_evidence claim -> 0.5),
+    # which discarded all per-claim nuance and caused every such claim to
+    # collapse onto the same score.
     for claim in claim_map.values():
-        base = _VERDICT_CONFIDENCE.get(claim.get("verdict"), 0.5)
-        claim["effective_confidence"] = float(base)
+        self_conf = claim.get("self_confidence")
+        if isinstance(self_conf, (int, float)):
+            base = float(self_conf)
+        else:
+            base = _VERDICT_CONFIDENCE.get(claim.get("verdict"), 0.5)
+        claim["effective_confidence"] = base
 
     # 1. Dependency down‑weighting (refuted -> dependent claim).
     for edge in edges:

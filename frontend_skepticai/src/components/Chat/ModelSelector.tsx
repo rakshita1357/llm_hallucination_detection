@@ -35,6 +35,10 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
     switch (id) {
       case 'nvidia-nim-gpt-oss-120b':
         return <Cpu className="w-4 h-4 text-emerald-400" />;
+      case 'nvidia/nemotron-3-super-120b-a12b':
+        return <Cpu className="w-4 h-4 text-emerald-400" />;
+      case 'google/gemma-4-31b-it':
+        return <Sparkles className="w-4 h-4 text-blue-400" />;
       case 'gemini-2-5-pro':
       case 'gemini-2-5-flash':
         return <Sparkles className="w-4 h-4 text-blue-400" />;

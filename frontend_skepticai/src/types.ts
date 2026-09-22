@@ -1,4 +1,4 @@
-export type ModelId = 'gemini-2-5-pro' | 'gemini-2-5-flash' | 'nvidia-nim-gpt-oss-120b';
+export type ModelId = 'gemini-2-5-pro' | 'gemini-2-5-flash' | 'nvidia-nim-gpt-oss-120b' | 'nvidia/nemotron-3-super-120b-a12b' | 'google/gemma-4-31b-it';
 
 export interface AIModel {
   id: ModelId;
