@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import json
 import os
+import requests
 from typing import Dict, List
-from modules import metrics
+from Backend.modules import metrics
 
 # ---------------------------------------------------------------------------
 # Lazy optional imports – we fall back to a bag‑of‑words approach if the heavy
@@ -52,7 +53,7 @@ def _load_corpus() -> None:
     global _DOCS
     if _DOCS:
         return  # Already loaded
-    data_path = os.path.join(os.path.dirname(__file__), "..", "data", "raw", "sample_dataset.json")
+    data_path = os.path.join(os.path.dirname(__file__), "../..", "data", "raw", "sample_dataset.json")
     try:
         with open(data_path, "r", encoding="utf-8") as f:
             raw = json.load(f)
@@ -112,29 +113,43 @@ def _ensure_doc_embeddings():
         _DOC_EMBEDS = _embed_texts(texts)
 
 def _search(query: str, top_k: int = 3) -> List[Dict[str, str]]:
-    """Return the *top_k* most similar documents for *query*.
+    """Search the web for *query* using the Exa API and return up to *top_k* results.
 
-    Each result is a dictionary with ``snippet`` (truncated document text) and
-    ``source`` (the original dataset ``id``). The function is deterministic –
-    ties are broken by the original document order.
+    Each result is a dictionary with ``snippet`` (highlights from the page) and ``source`` (the URL).
+    If the EXA_API_KEY is missing or the request fails, an empty list is returned.
     """
     if not query:
         return []
-    _ensure_doc_embeddings()
-    query_emb = _embed_texts([query])  # shape (1, dim)
-    # Cosine similarity via dot‑product (vectors are L2‑normalised).
-    import numpy as _np
-    sims = _np.dot(_DOC_EMBEDS, query_emb.T).ravel()
-    # Get indices of the highest scores.
-    top_idxs = _np.argsort(-sims)[:top_k]
-    results: List[Dict[str, str]] = []
-    for idx in top_idxs:
-        doc = _DOCS[idx]
-        snippet = doc["text"][:200].strip()
-        if len(doc["text"]) > 200:
-            snippet += "..."
-        results.append({"snippet": snippet, "source": f"doc_{doc['id']}"})
-    return results
+    api_key = os.getenv("EXA_API_KEY")
+    if not api_key:
+        return []
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "query": query,
+        "type": "auto",
+        "num_results": top_k,
+        "contents": {"highlights": True},
+    }
+    try:
+        resp = requests.post("https://api.exa.ai/search", json=payload, headers=headers, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        results: List[Dict[str, str]] = []
+        for item in data.get("results", [])[:top_k]:
+            snippet = ""
+            if isinstance(item.get("contents"), dict):
+                snippet = item["contents"].get("highlights") or item["contents"].get("excerpt") or ""
+            results.append({
+                "snippet": snippet,
+                "source": item.get("url", ""),
+                "title": item.get("title", ""),
+            })
+        return results
+    except Exception:
+        return []
 
 # ---------------------------------------------------------------------------
 # Public helpers – unchanged signatures

@@ -2,12 +2,12 @@ import { AIModel } from '../types.ts';
 
 export const AVAILABLE_MODELS: AIModel[] = [
   {
-    id: 'chatgpt-4o',
-    name: 'ChatGPT-4o',
-    provider: 'OpenAI',
-    description: 'Flagship multimodal model with broad general knowledge and rapid reasoning.',
+    id: 'nvidia-nim-gpt-oss-120b',
+    name: 'GPT-OSS 120B (NVIDIA NIM)',
+    provider: 'NVIDIA',
+    description: 'Open-weight 120B model served via NVIDIA NIM, OpenAI-compatible endpoint.',
     contextWindow: '128k tokens',
-    tag: 'OpenAI GPT-4o',
+    tag: 'NVIDIA NIM',
     badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
     iconName: 'chatgpt'
   },
@@ -21,16 +21,8 @@ export const AVAILABLE_MODELS: AIModel[] = [
     badgeColor: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
     iconName: 'gemini'
   },
-  {
-    id: 'claude-3-5-sonnet',
-    name: 'Claude 3.5 Sonnet',
-    provider: 'Anthropic',
-    description: 'Industry-leading nuanced synthesis, precision writing, and logical comprehension.',
-    contextWindow: '200k tokens',
-    tag: 'Anthropic Claude',
-    badgeColor: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
-    iconName: 'claude'
-  }
+
+
 ];
 
 export const DEFAULT_MODEL_ID = 'gemini-2-5-pro';

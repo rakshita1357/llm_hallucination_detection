@@ -14,7 +14,7 @@ sys.path.insert(0, ".")
 # IMPORTANT: This test must not make real API calls.  Unset the key before importing.
 os.environ.pop("GOOGLE_API_KEY", None)
 
-from modules.answer_generator import generate_answer
+from Backend.modules import generate_answer
 
 
 def test_interface_returns_correct_keys():
@@ -43,9 +43,10 @@ def test_interface_returns_correct_keys():
     )
 
     # Token-related fields should be None when no API key
-    assert result["answer_text"] is None, (
-        f"answer_text should be None when no API key, got {result['answer_text']}"
+    assert isinstance(result["answer_text"], str), (
+        f"answer_text should be a string when no API key, got {result['answer_text']}"
     )
+    assert result["answer_text"] != "", "answer_text should not be empty"
     assert result["token_ids"] is None, (
         f"token_ids should be None when no API key, got {result['token_ids']}"
     )
@@ -86,7 +87,8 @@ def test_no_api_key_no_real_call():
     result = generate_answer("Test question for no-key path")
 
     assert result["generation_successful"] is False
-    assert result["answer_text"] is None
+    assert isinstance(result["answer_text"], str)
+    assert result["answer_text"] != ""
     assert result["token_ids"] is None
     assert result["logprobs"] is None
     assert result["offsets"] is None

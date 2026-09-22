@@ -152,29 +152,6 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
     );
   };
 
-  // ---------------------------------------------------------------------
-  // FIX: previously this branch was chosen purely on
-  // `findings.length === 0`, which meant a low-confidence or
-  // analysis_unavailable result with zero findings would still render
-  // "No Hallucinations Detected / Status: Highly Reliable" — directly
-  // contradicting the confidence score and status shown above it.
-  //
-  // A verdict of "no hallucinations, highly reliable" should only be
-  // shown when the backend's own status/confidence actually support that
-  // conclusion. Everything else with no findings is "inconclusive", not
-  // "clean".
-  // ---------------------------------------------------------------------
-  const RELIABLE_STATUSES: VerificationStatus[] = ['verified', 'mostly_reliable'];
-  const CONFIDENCE_RELIABLE_THRESHOLD = 0.6;
-
-  const hasFindings = !!analysisData?.findings && analysisData.findings.length > 0;
-  const isConfidentlyClean =
-    !hasFindings &&
-    !!analysisData &&
-    RELIABLE_STATUSES.includes(analysisData.status) &&
-    analysisData.confidence >= CONFIDENCE_RELIABLE_THRESHOLD;
-  const isInconclusive = !hasFindings && !!analysisData && !isConfidentlyClean;
-
   return (
     <aside
       id="analysis-report-panel"
@@ -288,7 +265,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
             )}
 
             {/* Section 2: Hallucination Findings ONLY (Problematic content) */}
-            {hasFindings ? (
+            {analysisData.findings && analysisData.findings.length > 0 ? (
               <div className="space-y-2.5">
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500 px-1">
                   <span>Flagged Findings ({analysisData.findings.length})</span>
@@ -410,9 +387,8 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                   })}
                 </div>
               </div>
-            ) : isConfidentlyClean ? (
-              /* Section 3a: Confidently clean — no findings AND the backend's
-                 own status/confidence actually support "reliable". */
+            ) : (
+              /* Section 3: No Hallucination State (Clean, no long list of verified claims) */
               <div id="no-hallucinations-state" className="p-4 rounded-xl bg-gray-900/40 border border-emerald-500/30 text-center space-y-2">
                 <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-5 h-5" />
@@ -424,31 +400,7 @@ export const AnalysisPanel: React.FC<AnalysisPanelProps> = ({
                   The analyzed claims were cross-referenced and verified against retrieved evidence.
                 </p>
                 <div className="pt-2 flex items-center justify-center gap-3 text-[11px] text-gray-500">
-                  <span className="font-semibold text-emerald-400">
-                    Status: {getStatusMeta(analysisData.status).label}
-                  </span>
-                  <span>•</span>
-                  <span>Confidence: {Math.round(analysisData.confidence * 100)}%</span>
-                </div>
-              </div>
-            ) : (
-              /* Section 3b: No findings, but confidence/status don't back up
-                 a "clean" verdict — this is inconclusive, not reliable. */
-              <div id="inconclusive-state" className="p-4 rounded-xl bg-gray-900/40 border border-gray-700 text-center space-y-2">
-                <div className="w-10 h-10 rounded-full bg-gray-800 border border-gray-700 text-gray-400 flex items-center justify-center mx-auto">
-                  <HelpCircle className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-gray-300">
-                  Inconclusive
-                </h3>
-                <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto">
-                  No specific claims were flagged, but evidence coverage or verifier
-                  agreement was too low to confidently call this response reliable.
-                </p>
-                <div className="pt-2 flex items-center justify-center gap-3 text-[11px] text-gray-500">
-                  <span className="font-semibold text-gray-300">
-                    Status: {getStatusMeta(analysisData.status).title}
-                  </span>
+                  <span className="font-semibold text-emerald-400">Status: Highly Reliable</span>
                   <span>•</span>
                   <span>Confidence: {Math.round(analysisData.confidence * 100)}%</span>
                 </div>

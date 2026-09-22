@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Check, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, Mail, Lock, User, Check, ArrowRight, Loader2 } from 'lucide-react';
 import { UserProfile } from '../../types.ts';
 import { BrandLogo } from '../BrandLogo.tsx';
+import { signup, login, AuthResponse } from '../../services/apiService.ts';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -24,12 +25,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
 
     if (mode === 'signup') {
       if (!name.trim()) {
@@ -47,22 +50,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const profile: UserProfile = {
-      id: `usr_${Date.now()}`,
-      name: mode === 'signup' ? name : (email.split('@')[0].replace('.', ' ') || 'Researcher'),
-      email,
-      role: 'AI Safety Researcher',
-      isLoggedIn: true
-    };
+    setLoading(true);
 
-    setSuccess(mode === 'signup' ? 'Account created successfully!' : 'Signed in successfully!');
-    setTimeout(() => {
-      onLogin(profile);
-      onClose();
-    }, 600);
+    try {
+      let response: AuthResponse;
+      
+      if (mode === 'signup') {
+        response = await signup({ name, email, password });
+      } else {
+        response = await login({ email, password });
+      }
+
+      setSuccess(mode === 'signup' ? 'Account created successfully!' : 'Signed in successfully!');
+      
+      // Convert backend user to frontend UserProfile
+      const profile: UserProfile = {
+        id: response.user.id,
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        isLoggedIn: true
+      };
+
+      setTimeout(() => {
+        onLogin(profile);
+        onClose();
+      }, 600);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Authentication failed. Please try again.';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
+    // For now, keep the mock Google sign-in as a demo fallback
     const profile: UserProfile = {
       id: `usr_google_${Date.now()}`,
       name: 'Dr. Sarah Connor',
@@ -81,7 +104,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition cursor-pointer"
+          disabled={loading}
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition cursor-pointer disabled:opacity-50"
         >
           <X className="w-5 h-5" />
         </button>
@@ -98,8 +122,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="flex p-1 rounded-xl bg-black/40 border border-gray-800 mb-5">
           <button
             type="button"
-            onClick={() => { setMode('signin'); setError(null); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            onClick={() => { setMode('signin'); setError(null); setSuccess(null); }}
+            disabled={loading}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50 ${
               mode === 'signin'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-gray-400 hover:text-white'
@@ -109,8 +134,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => { setMode('signup'); setError(null); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+            onClick={() => { setMode('signup'); setError(null); setSuccess(null); }}
+            disabled={loading}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer disabled:opacity-50 ${
               mode === 'signup'
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'text-gray-400 hover:text-white'
@@ -122,12 +148,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Error / Success Notifications */}
         {error && (
-          <div className="mb-4 p-2.5 rounded-lg bg-red-950/40 border border-red-500/50 text-red-300 text-xs flex items-center gap-2">
+          <div className="mb-4 p-2.5 rounded-lg bg-red-950/40 border border-red-500/50 text-red-300 text-xs flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
             <span>{error}</span>
           </div>
         )}
         {success && (
-          <div className="mb-4 p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2">
+          <div className="mb-4 p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-2 animate-in slide-in-from-top-2 duration-200">
             <Check className="w-4 h-4" />
             <span>{success}</span>
           </div>
@@ -143,10 +169,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="text"
                   required
+                  disabled={loading}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="e.g. Dr. Alex Morgan"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -159,10 +186,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <input
                 type="email"
                 required
+                disabled={loading}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@organization.com"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -174,10 +202,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <input
                 type="password"
                 required
+                disabled={loading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -190,10 +219,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <input
                   type="password"
                   required
+                  disabled={loading}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/40 border border-gray-800 focus:border-blue-500 focus:outline-none text-xs text-white placeholder:text-gray-500 disabled:opacity-50"
                 />
               </div>
             </div>
@@ -206,6 +236,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
                   className="rounded border-gray-700 bg-gray-900 text-blue-600 focus:ring-0 cursor-pointer"
                 />
                 <span>Remember me</span>
@@ -213,7 +244,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <button
                 type="button"
                 onClick={() => alert('Password reset instructions will be sent to your registered email.')}
-                className="text-blue-400 hover:underline cursor-pointer"
+                disabled={loading}
+                className="text-blue-400 hover:underline cursor-pointer disabled:opacity-50"
               >
                 Forgot password?
               </button>
@@ -222,10 +254,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition cursor-pointer shadow-lg shadow-blue-900/40 flex items-center justify-center gap-1.5 mt-2"
+            disabled={loading}
+            className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition cursor-pointer shadow-lg shadow-blue-900/40 flex items-center justify-center gap-1.5 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span>{mode === 'signin' ? 'Sign In to SkepticAI' : 'Create Free Account'}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            {loading ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>{mode === 'signin' ? 'Signing in...' : 'Creating account...'}</span>
+              </>
+            ) : (
+              <>
+                <span>{mode === 'signin' ? 'Sign In to SkepticAI' : 'Create Free Account'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </>
+            )}
           </button>
         </form>
 
@@ -243,7 +285,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <button
           type="button"
           onClick={handleGoogleSignIn}
-          className="w-full py-2 rounded-xl bg-black/40 hover:bg-white/5 border border-gray-800 text-gray-200 font-medium text-xs transition cursor-pointer flex items-center justify-center gap-2"
+          disabled={loading}
+          className="w-full py-2 rounded-xl bg-black/40 hover:bg-white/5 border border-gray-800 text-gray-200 font-medium text-xs transition cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path

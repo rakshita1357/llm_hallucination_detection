@@ -1,0 +1,52 @@
+/home/voyager4/projects/llm_hallucination_detection/venv/lib/python3.12/site-packages/torch/cuda/__init__.py:188: UserWarning: CUDA initialization: The NVIDIA driver on your system is too old (found version 12040). Please update your GPU driver by downloading and installing a new version from the URL: http://www.nvidia.com/Download/index.aspx Alternatively, go to: https://pytorch.org to install a PyTorch version that has been compiled with your version of the CUDA driver. (Triggered internally at /__w/pytorch/pytorch/c10/cuda/CUDAFunctions.cpp:119.)
+  return torch._C._cuda_getDeviceCount() > 0
+INFO:     Started server process [168425]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:35104 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35108 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:35112 - "GET /health HTTP/1.1" 200 OK
+/home/voyager4/projects/llm_hallucination_detection/Backend/modules/answer_generator.py:73: FutureWarning: 
+
+All support for the `google.generativeai` package has ended. It will no longer be receiving 
+updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
+See README for more details:
+
+https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
+
+  import google.generativeai as genai
+LLM call failed: 404 models/gemini-2.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+LLM call failed: 404 models/gemini-2.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.
+[Escalation warning] Residual set size 1/1 exceeds 15% – consider reviewing the cap.
+INFO:     127.0.0.1:47858 - "POST /api/chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39534 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39544 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39550 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52798 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49384 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49394 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38340 - "OPTIONS /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38344 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32830 - "OPTIONS /api/chats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:38344 - "GET /auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32834 - "GET /api/chats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46104 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46120 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46108 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32834 - "GET /api/chats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45930 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45932 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45946 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33658 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33674 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33688 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49522 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49534 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49546 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41010 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41016 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:41024 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56102 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56118 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56130 - "GET /health HTTP/1.1" 200 OK
