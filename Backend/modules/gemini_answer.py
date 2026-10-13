@@ -13,7 +13,7 @@ from typing import Any, Dict
 
 from Backend.modules.genai_client import generate
 
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MODEL_NAME = "gemini-3.6-flash"
 
 
 def generate_gemini_answer(prompt: str) -> Dict[str, Any]:

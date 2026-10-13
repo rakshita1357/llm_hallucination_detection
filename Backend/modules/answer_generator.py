@@ -12,7 +12,7 @@ checking for every field.
 Generation backends:
     - Gemini (Google) — via Backend.modules.genai_client (google-genai SDK,
       thinking_budget=0 to avoid truncation from internal thinking tokens).
-    - NVIDIA NIM (OpenAI-compatible endpoint) — serves openai/gpt-oss-120b
+    - NVIDIA NIM (OpenAI-compatible endpoint) — serves nvidia/nemotron-3-super-120b-a12b
       and other NIM-hosted models via the standard OpenAI SDK pointed at
       NVIDIA's base_url.
 """
@@ -30,8 +30,8 @@ from Backend.modules.genai_client import generate as genai_generate
 load_dotenv()
 
 # Model names — change here once, used everywhere in this module.
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
-NVIDIA_NIM_MODEL_NAME = "openai/gpt-oss-120b"
+GEMINI_MODEL_NAME = "gemini-3.6-flash"
+NVIDIA_NIM_MODEL_NAME = "nvidia/nemotron-3-super-120b-a12b"
 NVIDIA_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
@@ -114,10 +114,10 @@ def _call_gemini_generate(question: str) -> Dict[str, Any]:
     }
 
 
-def generate_answer(question: str, generation_model: str = "gemini-2.5-flash") -> Dict[str, Any]:
+def generate_answer(question: str, generation_model: str = "gemini-3.6-flash") -> Dict[str, Any]:
     """Generate an LLM answer to the given question using the selected generation model.
 
-    Supports Gemini (Google) and NVIDIA NIM (OpenAI-compatible, e.g. openai/gpt-oss-120b).
+    Supports Gemini (Google) and NVIDIA NIM (OpenAI-compatible, e.g. nvidia/nemotron-3-super-120b-a12b).
     If the required API key or library is missing, falls back to a deterministic
     placeholder answer.
     """
@@ -163,7 +163,7 @@ def generate_answer(question: str, generation_model: str = "gemini-2.5-flash") -
             }
     # -------------------------------------------------
     # NVIDIA NIM generation path (OpenAI-compatible endpoint)
-    # Serves models like "openai/gpt-oss-120b". Triggered by "gpt", "nim",
+    # Serves models like "nvidia/nemotron-3-super-120b-a12b". Triggered by "gpt", "nim",
     # or "nvidia" appearing in the requested model string.
     # -------------------------------------------------
     if "gpt" in model_key or "nim" in model_key or "nvidia" in model_key:

@@ -34,7 +34,7 @@ from Backend.modules import metrics
 from Backend.modules.genai_client import generate as genai_generate, get_client as genai_get_client
 from typing import List, Dict, Optional
 
-GEMINI_MODEL_NAME = "gemini-2.5-flash"
+GEMINI_MODEL_NAME = "gemini-3.6-flash"
 
 
 def _get_llm_client(model_name: str):

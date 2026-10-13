@@ -2,16 +2,6 @@ import { AIModel } from '../types.ts';
 
 export const AVAILABLE_MODELS: AIModel[] = [
   {
-    id: 'nvidia-nim-gpt-oss-120b',
-    name: 'GPT-OSS 120B (NVIDIA NIM)',
-    provider: 'NVIDIA',
-    description: 'Open-weight 120B model served via NVIDIA NIM, OpenAI-compatible endpoint.',
-    contextWindow: '128k tokens',
-    tag: 'NVIDIA NIM',
-    badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    iconName: 'chatgpt'
-  },
-  {
     id: 'gemini-2-5-pro',
     name: 'Gemini 2.5 Pro',
     provider: 'Google',

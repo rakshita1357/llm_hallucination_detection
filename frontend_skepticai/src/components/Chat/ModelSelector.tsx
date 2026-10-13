@@ -33,8 +33,6 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
 
   const getModelIcon = (id: ModelId) => {
     switch (id) {
-      case 'nvidia-nim-gpt-oss-120b':
-        return <Cpu className="w-4 h-4 text-emerald-400" />;
       case 'nvidia/nemotron-3-super-120b-a12b':
         return <Cpu className="w-4 h-4 text-emerald-400" />;
       case 'google/gemma-4-31b-it':
@@ -66,7 +64,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       {isOpen && (
         <div 
           id="model-selector-popover"
-          className="absolute z-50 top-full mt-2 left-0 w-80 rounded-xl bg-[#141416] border border-gray-800 shadow-2xl shadow-black/80 p-2 space-y-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+          className="absolute z-50 bottom-full mb-2 left-0 w-80 rounded-xl bg-[#141416] border border-gray-800 shadow-2xl shadow-black/80 p-2 space-y-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 max-h-[60vh] overflow-y-auto"
         >
           <div className="px-2.5 py-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-800 flex items-center justify-between">
             <span>Select LLM Architecture</span>

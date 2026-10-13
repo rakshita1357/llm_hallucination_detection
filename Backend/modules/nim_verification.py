@@ -67,7 +67,10 @@ def call_nim_model(model_id: str, system_prompt: str, user_prompt: str) -> Optio
         return None
 
     try:
-        client = OpenAI(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL)
+        # timeout=45: without an explicit timeout, a slow or stalled model
+        # can hang the OpenAI client indefinitely, which hangs the whole
+        # /api/chat request with no visible error. Fail fast instead.
+        client = OpenAI(api_key=api_key, base_url=NVIDIA_NIM_BASE_URL, timeout=45.0)
         response = client.chat.completions.create(
             model=model_id,
             messages=[
@@ -87,7 +90,7 @@ def call_nim_model(model_id: str, system_prompt: str, user_prompt: str) -> Optio
         return None
 
 
-def _parse_verdicts(response_text: str) -> List[Dict]:
+def _parse_verdicts(response_text: str, model_id: str = "") -> List[Dict]:
     """Extract the ``verdicts`` list from the model's raw response.
 
     Handles markdown code fences (```json ... ```) the same way Call 1 and
@@ -106,9 +109,9 @@ def _parse_verdicts(response_text: str) -> List[Dict]:
         data = json.loads(json_str)
         if isinstance(data, dict) and "verdicts" in data:
             return data["verdicts"]
-        print(f"[NIM VERIFY] unexpected JSON shape (no 'verdicts' key): {json_str[:300]!r}")
+        print(f"[NIM VERIFY] model={model_id!r} unexpected JSON shape (no 'verdicts' key): {json_str[:300]!r}")
     except Exception as e:
-        print(f"[NIM VERIFY] JSON parse failed: {e!r} | raw: {json_str[:300]!r}")
+        print(f"[NIM VERIFY] model={model_id!r} JSON parse failed: {e!r} | raw: {json_str[:300]!r}")
     return []
 
 
@@ -147,7 +150,7 @@ def verify_claims(claims: List[Dict], model_ids: List[str] = None) -> List[Dict]
                 # Model call failed; skip this batch for this model (the
                 # other models' votes still count for these claims).
                 continue
-            batch_verdicts = _parse_verdicts(resp_text)
+            batch_verdicts = _parse_verdicts(resp_text, model_id)
             for v in batch_verdicts:
                 claim_id = v.get("id")
                 verdict = v.get("verdict")

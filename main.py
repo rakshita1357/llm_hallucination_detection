@@ -5,7 +5,7 @@
 * It also hosts a FastAPI application exposing the full Phase 1 pipeline via the
   ``/pipeline`` endpoint.
 
-The Gemini model used throughout the pipeline is ``gemini-2.5-flash`` (the
+The Gemini model used throughout the pipeline is ``gemini-3.6-flash`` (the
 fallback implementation works without an API key)."""
 
 import pandas as pd
